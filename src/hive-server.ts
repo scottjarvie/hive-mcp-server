@@ -73,24 +73,58 @@ server.tool(
   }
 );
 
-// Start the server with verbose logging
+// Start the server with verbose logging and manual dispatch
 const startServer = async () => {
   const transport = new StdioServerTransport();
-  
-  // Log when transport receives input (if supported)
-  // transport.on("message", (msg) => {
-  //   console.log(`Transport received: ${JSON.stringify(msg)}`);
-  // });
+
+  // Log transport events (if supported)
+  transport.onmessage = (msg: any) => {
+    console.log(`Transport received message: ${JSON.stringify(msg)}`);
+  };
+  transport._ondata = (data: Buffer) => {
+    console.log(`Transport received data: ${data.toString().trim()}`);
+  };
+  transport.onerror = (err) => {
+    console.error(`Transport error: ${err.message}`);
+  };
 
   console.log("Connecting server to transport...");
   await server.connect(transport);
   console.log("Server started, waiting for input...");
 
-  // Explicitly handle stdin for debugging
+  // Manually handle stdin for both tools and resources
   process.stdin
     .setEncoding("utf8")
-    .on("data", (data) => {
+    .on("data", async (data) => {
       console.log(`Stdin received: ${data.toString().trim()}`);
+      try {
+        const request = JSON.parse(data.toString());
+        if (request.type === "tool" && request.name === "get_posts_by_tag") {
+          console.log("Manually handling tool request...");
+          const result = await server.tool(request.name, request.input);
+          console.log(`Manual tool result: ${JSON.stringify(result)}`);
+          process.stdout.write(JSON.stringify(result) + "\n");
+        } else if (request.type === "resource" && request.uri.startsWith("hive://accounts/")) {
+          console.log("Manually handling account resource request...");
+          const account = request.uri.split("/").pop(); // Extract account name
+          const uri = new URL(request.uri);
+          const result = await server.resource("account", uri.href, async () => {
+            const accounts = await client.database.getAccounts([account]);
+            if (accounts.length === 0) {
+              throw new Error(`Account ${account} not found`);
+            }
+            return { contents: [{ uri: uri.href, text: JSON.stringify(accounts[0], null, 2) }] };
+          });
+          console.log(`Manual resource result: ${JSON.stringify(result)}`);
+          process.stdout.write(JSON.stringify(result) + "\n");
+        } else {
+          console.log("Request type or URI not recognized, passing to transport.");
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        console.error(`Error processing stdin: ${errorMessage}`);
+        process.stdout.write(JSON.stringify({ error: errorMessage }) + "\n");
+      }
     })
     .on("error", (err) => {
       console.error(`Stdin error: ${err.message}`);
