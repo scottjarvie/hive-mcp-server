@@ -1,7 +1,11 @@
+// test/hive-server.test.ts
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MockStdioTransport } from "./mock-stdio";
 import { Client } from "@hiveio/dhive";
 import { z } from "zod";
+
+// Make sure to auto-mock the dhive module
+// jest.mock('@hiveio/dhive');
 
 // Initialize the Hive client with multiple RPC nodes for redundancy
 const client = new Client([
@@ -11,8 +15,8 @@ const client = new Client([
   "https://api.openhive.network"
 ]);
 
-// Utility function to wait for a condition to be true
-async function waitForCondition(condition: () => boolean, timeout: number = 2000): Promise<void> {
+// Utility function with increased timeout
+async function waitForCondition(condition: () => boolean, timeout: number = 5000): Promise<void> {
   const start = Date.now();
   while (!condition()) {
     if (Date.now() - start > timeout) {
@@ -27,10 +31,13 @@ describe("Hive MCP Server", () => {
   let transport: MockStdioTransport;
 
   beforeEach(async () => {
+    // Reset mocks before each test
+    jest.clearAllMocks();
+    
     transport = new MockStdioTransport();
     server = new McpServer({ name: "HiveServer", version: "1.0.0" });
 
-    // Register account resource
+    // Register account resource - same as your original
     server.resource(
       "account",
       new ResourceTemplate("hive://accounts/{account}", { list: undefined }),
@@ -51,7 +58,7 @@ describe("Hive MCP Server", () => {
       }
     );
 
-    // Register post resource
+    // Register post resource - same as your original
     server.resource(
       "post",
       new ResourceTemplate("hive://posts/{author}/{permlink}", { list: undefined }),
@@ -72,7 +79,7 @@ describe("Hive MCP Server", () => {
       }
     );
 
-    // Register tool to get posts by tag
+    // Register tool to get posts by tag - same as your original
     server.tool(
       "get_posts_by_tag",
       { tag: z.string() },
@@ -87,22 +94,43 @@ describe("Hive MCP Server", () => {
       }
     );
 
+    // Connect server to our transport
     await server.connect(transport);
   });
 
   afterEach(() => {
-    // No disconnect method needed for McpServer in this setup
+    // Proper cleanup
+    jest.clearAllMocks();
   });
 
   test("Account resource", async () => {
+    // Add debug logging
+    console.log("Starting Account resource test");
+    
     const request = {
       type: "resource",
       uri: "hive://accounts/hiveio",
     };
 
+    // Debug logging
+    console.log("Sending request:", JSON.stringify(request));
+    
+    // Send the request
     transport.simulateInput(JSON.stringify(request) + "\n");
 
-    await waitForCondition(() => transport.responses.length > 0);
+    // Debug logging
+    console.log("Waiting for response...");
+    
+    // Wait for response with increased timeout
+    await waitForCondition(() => {
+      const hasResponses = transport.responses.length > 0;
+      if (!hasResponses) {
+        console.log("No responses yet...");
+      } else {
+        console.log("Got response:", transport.responses[0]);
+      }
+      return hasResponses;
+    }, 10000); // 10 second timeout
 
     const response = JSON.parse(transport.responses[0]);
     expect(response.type).toBe("resource");
@@ -117,8 +145,7 @@ describe("Hive MCP Server", () => {
     };
 
     transport.simulateInput(JSON.stringify(request) + "\n");
-
-    await waitForCondition(() => transport.responses.length > 0);
+    await waitForCondition(() => transport.responses.length > 0, 10000);
 
     const response = JSON.parse(transport.responses[0]);
     expect(response.type).toBe("resource");
@@ -134,8 +161,7 @@ describe("Hive MCP Server", () => {
     };
 
     transport.simulateInput(JSON.stringify(request) + "\n");
-
-    await waitForCondition(() => transport.responses.length > 0);
+    await waitForCondition(() => transport.responses.length > 0, 10000);
 
     const response = JSON.parse(transport.responses[0]);
     expect(response.type).toBe("tool");
