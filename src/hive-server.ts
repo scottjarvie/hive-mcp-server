@@ -20,7 +20,7 @@ server.resource(
   "account",
   new ResourceTemplate("hive://accounts/{account}", { list: undefined }),
   async (uri, { account }) => {
-    const accounts = await client.database.getAccounts([account]);
+    const accounts = await client.database.getAccounts(Array.isArray(account) ? account : [account]);
     if (accounts.length === 0) {
       throw new Error(`Account ${account} not found`);
     }
@@ -38,7 +38,7 @@ server.resource(
   "post",
   new ResourceTemplate("hive://posts/{author}/{permlink}", { list: undefined }),
   async (uri, { author, permlink }) => {
-    const content = await client.database.getContent(author, permlink);
+    const content = await client.database.call('get_content', [author, permlink]);
     if (!content.author) {
       throw new Error(`Post not found: ${author}/${permlink}`);
     }
@@ -66,6 +66,10 @@ server.tool(
 );
 
 // Start the server using stdio transport (for local testing)
-const transport = new StdioServerTransport();
-await server.connect(transport);
+const startServer = async () => {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+};
+
+startServer();
 
