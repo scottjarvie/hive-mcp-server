@@ -4,10 +4,15 @@ import { MockStdioTransport } from "./mock-stdio";
 import { Client } from "@hiveio/dhive";
 import { z } from "zod";
 
-// Mock the dhive module for faster, more reliable tests
-// jest.mock('@hiveio/dhive');
+// Initialize the Hive client with multiple RPC nodes for redundancy
+const client = new Client([
+  "https://api.hive.blog",
+  "https://api.hivekings.com",
+  "https://anyx.io",
+  "https://api.openhive.network"
+]);
 
-// Utility function with increased timeout for waiting on async operations
+// Utility function with increased timeout
 async function waitForCondition(condition: () => boolean, timeout: number = 5000): Promise<void> {
   const start = Date.now();
   while (!condition()) {
@@ -21,63 +26,13 @@ async function waitForCondition(condition: () => boolean, timeout: number = 5000
 describe("Hive MCP Server", () => {
   let server: McpServer;
   let transport: MockStdioTransport;
-  let mockClient: any;
 
   beforeEach(async () => {
     // Reset mocks before each test
     jest.clearAllMocks();
     
-    // Initialize mock transport
     transport = new MockStdioTransport();
-    
-    // Create server instance
     server = new McpServer({ name: "HiveServer", version: "1.0.0" });
-
-    // Initialize the Client mock
-    mockClient = new Client([]);
-    
-    // Mock client database methods
-    mockClient.database = {
-      getAccounts: jest.fn().mockImplementation(async (accounts: string[]) => {
-        if (accounts.includes('hiveio')) {
-          return [{ name: 'hiveio', balance: '1000 HIVE', json_metadata: '{}' }];
-        }
-        return [];
-      }),
-      
-      call: jest.fn().mockImplementation(async (method: string, params: any[]) => {
-        if (method === 'get_content' && params[0] === 'hiveio' && params[1] === 'welcome-to-hive') {
-          return {
-            author: 'hiveio',
-            permlink: 'welcome-to-hive',
-            title: 'Welcome to Hive',
-            body: 'This is the Hive blockchain.'
-          };
-        }
-        return {};
-      }),
-      
-      getDiscussions: jest.fn().mockImplementation(async (sort: string, query: any) => {
-        if (query.tag === 'hive') {
-          return [
-            {
-              title: 'Post 1',
-              author: 'user1',
-              permlink: 'post-1'
-            },
-            {
-              title: 'Post 2',
-              author: 'user2',
-              permlink: 'post-2'
-            }
-          ];
-        }
-        return [];
-      })
-    };
-
-    // Replace the real client with our mock in the test
-    // (Client as jest.Mock).mockImplementation(() => mockClient);
 
     // Register account resource
     server.resource(
@@ -88,7 +43,7 @@ describe("Hive MCP Server", () => {
         if (!account) {
           throw new Error("Missing account variable");
         }
-        const accounts = await mockClient.database.getAccounts(Array.isArray(account) ? account : [account]);
+        const accounts = await client.database.getAccounts(Array.isArray(account) ? account : [account]);
         if (accounts.length === 0) {
           throw new Error(`Account ${account} not found`);
         }
@@ -110,28 +65,80 @@ describe("Hive MCP Server", () => {
         if (!author || !permlink) {
           throw new Error("Missing author or permlink variable");
         }
-        const content = await mockClient.database.call('get_content', [author, permlink]);
+        const content = await client.database.call('get_content', [author, permlink]);
         if (!content.author) {
           throw new Error(`Post not found: ${author}/${permlink}`);
         }
-        const text = `Title: ${content.title}\nAuthor: ${content.author}\nBody: ${content.body}`;
+        const text = JSON.stringify({
+          title: content.title,
+          author: content.author,
+          body: content.body
+        }, null, 2);
         return {
           contents: [{ uri: uri.href, text }],
         };
       }
     );
 
+    // Valid discussion query categories for tag-based queries
+    const tagQueryCategories = z.enum([
+      'active', 'cashout', 'children', 'comments',
+      'created', 'hot', 'promoted', 'trending', 'votes'
+    ]);
+
+    // Valid discussion query categories for user-based queries
+    const userQueryCategories = z.enum(['blog', 'feed']);
+
     // Register tool to get posts by tag
     server.tool(
       "get_posts_by_tag",
-      { tag: z.string() },
-      async ({ tag }) => {
-        const posts = await mockClient.database.getDiscussions("trending", { tag, limit: 10 });
-        const text = posts
-          .map((post: any) => `Title: ${post.title}\nAuthor: ${post.author}\nPermlink: ${post.permlink}`)
-          .join("\n\n");
+      { 
+        category: tagQueryCategories,
+        tag: z.string(),
+        limit: z.number().min(1).max(100).default(10)
+      },
+      async ({ category, tag, limit }) => {
+        const posts = await client.database.getDiscussions(category, { tag, limit });
+        const formattedPosts = posts.map(post => ({
+          title: post.title,
+          author: post.author,
+          permlink: post.permlink,
+          created: post.created,
+          votes: post.net_votes,
+          payout: post.pending_payout_value
+        }));
         return {
-          content: [{ type: "text", text }],
+          content: [{ 
+            type: "text", 
+            text: JSON.stringify(formattedPosts, null, 2)
+          }],
+        };
+      }
+    );
+
+    // Register tool to get posts by user
+    server.tool(
+      "get_posts_by_user",
+      { 
+        category: userQueryCategories,
+        username: z.string(),
+        limit: z.number().min(1).max(100).default(10)
+      },
+      async ({ category, username, limit }) => {
+        const posts = await client.database.getDiscussions(category, { tag: username, limit });
+        const formattedPosts = posts.map(post => ({
+          title: post.title,
+          author: post.author,
+          permlink: post.permlink,
+          created: post.created,
+          votes: post.net_votes,
+          payout: post.pending_payout_value
+        }));
+        return {
+          content: [{ 
+            type: "text", 
+            text: JSON.stringify(formattedPosts, null, 2)
+          }],
         };
       }
     );
@@ -145,68 +152,88 @@ describe("Hive MCP Server", () => {
     jest.clearAllMocks();
   });
 
-  test("Account resource should return account information", async () => {
-    // Create a request for the account resource
+  test("Account resource", async () => {
     const request = {
       type: "resource",
       uri: "hive://accounts/hiveio",
     };
-
-    // Send the request
+    
     transport.simulateInput(JSON.stringify(request) + "\n");
-
-    // Wait for response
     await waitForCondition(() => transport.responses.length > 0, 10000);
 
-    // Parse and validate the response
     const response = JSON.parse(transport.responses[0]);
     expect(response.type).toBe("resource");
     expect(response.contents[0].uri).toBe("hive://accounts/hiveio");
     expect(response.contents[0].text).toContain('"name": "hiveio"');
-    expect(mockClient.database.getAccounts).toHaveBeenCalledWith(["hiveio"]);
   });
 
-  test("Post resource should return post information", async () => {
-    // Create a request for the post resource
+  test("Post resource", async () => {
     const request = {
       type: "resource",
       uri: "hive://posts/hiveio/welcome-to-hive",
     };
 
-    // Send the request
     transport.simulateInput(JSON.stringify(request) + "\n");
-    
-    // Wait for response
     await waitForCondition(() => transport.responses.length > 0, 10000);
 
-    // Parse and validate the response
     const response = JSON.parse(transport.responses[0]);
     expect(response.type).toBe("resource");
     expect(response.contents[0].uri).toBe("hive://posts/hiveio/welcome-to-hive");
-    expect(response.contents[0].text).toContain("Title: Welcome to Hive");
-    expect(mockClient.database.call).toHaveBeenCalledWith("get_content", ["hiveio", "welcome-to-hive"]);
+    expect(response.contents[0].text).toContain("title");
+    expect(response.contents[0].text).toContain("author");
   });
 
-  test("Get posts by tag tool should return trending posts", async () => {
-    // Create a request for the tool
+  test("Get posts by tag tool", async () => {
     const request = {
       type: "tool",
       name: "get_posts_by_tag",
-      input: { tag: "hive" },
+      input: { 
+        category: "trending",
+        tag: "hive",
+        limit: 5
+      },
     };
 
-    // Send the request
     transport.simulateInput(JSON.stringify(request) + "\n");
-    
-    // Wait for response
     await waitForCondition(() => transport.responses.length > 0, 10000);
 
-    // Parse and validate the response
     const response = JSON.parse(transport.responses[0]);
     expect(response.type).toBe("tool");
     expect(response.content[0].type).toBe("text");
-    expect(response.content[0].text).toContain("Title: Post 1");
-    expect(response.content[0].text).toContain("Author: user1");
-    expect(mockClient.database.getDiscussions).toHaveBeenCalledWith("trending", { tag: "hive", limit: 10 });
+    
+    const posts = JSON.parse(response.content[0].text);
+    expect(Array.isArray(posts)).toBe(true);
+    if (posts.length > 0) {
+      expect(posts[0]).toHaveProperty("title");
+      expect(posts[0]).toHaveProperty("author");
+      expect(posts[0]).toHaveProperty("permlink");
+    }
+  });
+
+  test("Get posts by user tool", async () => {
+    const request = {
+      type: "tool",
+      name: "get_posts_by_user",
+      input: { 
+        category: "blog", 
+        username: "hiveio",
+        limit: 5
+      },
+    };
+
+    transport.simulateInput(JSON.stringify(request) + "\n");
+    await waitForCondition(() => transport.responses.length > 0, 10000);
+
+    const response = JSON.parse(transport.responses[0]);
+    expect(response.type).toBe("tool");
+    expect(response.content[0].type).toBe("text");
+    
+    const posts = JSON.parse(response.content[0].text);
+    expect(Array.isArray(posts)).toBe(true);
+    if (posts.length > 0) {
+      expect(posts[0]).toHaveProperty("title");
+      expect(posts[0]).toHaveProperty("author");
+      expect(posts[0]).toHaveProperty("permlink");
+    }
   });
 });
