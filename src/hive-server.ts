@@ -49,7 +49,7 @@ server.resource(
         author: content.author,
         body: content.body
       }, null, 2);
-      return { contents: [{ uri: uri.href, text }] };
+      return { contents: [{ uri: uri.href, text, mimeType: "application/json" }] };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       throw new Error(`Error fetching post: ${errorMessage}`);
@@ -91,7 +91,8 @@ server.tool(
       return {
         content: [{ 
           type: "text" as const, 
-          text: JSON.stringify(formattedPosts, null, 2)
+          text: JSON.stringify(formattedPosts, null, 2), 
+          mimeType: "application/json"
         }]
       };
     } catch (error) {
@@ -133,7 +134,8 @@ server.tool(
       return {
         content: [{ 
           type: "text" as const, 
-          text: JSON.stringify(formattedPosts, null, 2)
+          text: JSON.stringify(formattedPosts, null, 2), 
+          mimeType: "application/json"
         }]
       };
     } catch (error) {
@@ -142,6 +144,122 @@ server.tool(
         content: [{ 
           type: "text" as const, 
           text: `Error in get_posts_by_user: ${errorMessage}`
+        }],
+        isError: true
+      };
+    }
+  }
+);
+
+// Resource 3: Fetch account history
+server.tool(
+  "get_account_history",
+  "Retrieves transaction history for a Hive account with optional operation type filtering.",
+  { 
+    username: z.string().describe("Hive username"), 
+    limit: z.number().min(1).max(100).default(10).describe("Number of operations to return"),
+    operation_filter: z.union([
+      z.array(z.string()),
+      z.string().transform((val, ctx) => {
+        // Handle empty string
+        if (!val.trim()) return [];
+        
+        try {
+          // Try to parse it as JSON first in case it's a properly formatted JSON array
+          if ((val.startsWith('[') && val.endsWith(']'))) {
+            try {
+              const parsed = JSON.parse(val);
+              if (Array.isArray(parsed)) {
+                return parsed;
+              }
+            } catch (e) {
+              // Failed to parse as JSON, continue to other methods
+            }
+          }
+          
+          // Handle comma-separated list (possibly with quotes)
+          return val
+            .replace(/^\[|\]$/g, '') // Remove outer brackets if present
+            .split(',')
+            .map(item => 
+              item.trim()
+                .replace(/^['"]|['"]$/g, '') // Remove surrounding quotes
+            )
+            .filter(Boolean); // Remove empty entries
+        } catch (error) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Could not parse operation_filter: ${val}. Please provide a comma-separated list or array of operation types.`,
+          });
+          return z.NEVER;
+        }
+      })
+    ]).optional().describe("Operation types to filter for. Can be provided as an array ['transfer', 'vote'] or a comma-separated string 'transfer,vote'"),
+  },
+  async ({ username, limit, operation_filter }) => {
+    try {
+      // The getAccountHistory method needs a starting point (from) parameter
+      // We'll use -1 to get the most recent transactions
+      const from = -1;
+      
+      // Convert string operation types to their numerical bitmask if provided
+      let operation_bitmask = undefined;
+      if (operation_filter && operation_filter.length > 0) {
+        // This would require mapping operation names to their numeric codes
+        // For simplicity, we're skipping the bitmask transformation
+      }
+      
+      const history = await client.database.getAccountHistory(username, from, limit, operation_bitmask);
+      
+      if (!history || !Array.isArray(history)) {
+        return {
+          content: [{ 
+            type: "text", 
+            text: `No history found for account: ${username}`,
+            mimeType: "text/plain"
+          }]
+        };
+      }
+      
+      // Format the history into a structured object
+      const formattedHistory = history.map(([index, operation]) => {
+        const { timestamp, op, trx_id } = operation;
+        const opType = op[0];
+        const opData = op[1];
+        
+        // Filter operations if needed
+        if (operation_filter && operation_filter.length > 0 && !operation_filter.includes(opType)) {
+          return null;
+        }
+        
+        return {
+          index,
+          type: opType,
+          timestamp,
+          transaction_id: trx_id,
+          details: opData
+        };
+      }).filter(Boolean); // Remove null entries (filtered out operations)
+      
+      const response = {
+        content: [{ 
+          type: "text" as const, 
+          text: JSON.stringify({
+            account: username,
+            operations_count: formattedHistory.length,
+            operations: formattedHistory
+          }, null, 2),
+          mimeType: "application/json" 
+        }]
+      };
+
+      return response;
+    } catch (error) {
+      return {
+        content: [{ 
+          type: "text", 
+          text: `Error retrieving account history: ${error instanceof Error ? error.message : String(error)}`,
+          mimeType: "text/plain" 
         }],
         isError: true
       };
