@@ -10,12 +10,13 @@ const client = new Client([
   "https://api.openhive.network"
 ]);
 
-const server = new McpServer({ name: "HiveServer", version: "1.0.0" });
+const server = new McpServer({ name: "HiveServer", version: "1.0.1" });
 
 // Resource 1: Fetch account information
 server.resource(
   "account",
   new ResourceTemplate("hive://accounts/{account}", { list: undefined }),
+  // "Fetches detailed information about a Hive blockchain account including balance, authority, voting power, and other account metrics."
   async (uri, { account }) => {
     try {
       const accounts = await client.database.getAccounts(Array.isArray(account) ? account : [account]);
@@ -36,6 +37,7 @@ server.resource(
 server.resource(
   "post",
   new ResourceTemplate("hive://posts/{author}/{permlink}", { list: undefined }),
+  // "Retrieves a specific Hive blog post identified by author and permlink, including the post title, content, and metadata.",
   async (uri, { author, permlink }) => {
     try {
       const content = await client.database.call("get_content", [author, permlink]);
@@ -67,10 +69,11 @@ const userQueryCategories = z.enum(['blog', 'feed']);
 // Tool 1: Fetch posts by tag
 server.tool(
   "get_posts_by_tag",
+  "Retrieves Hive posts filtered by a specific tag and sorted by a category like trending, hot, or created.",
   { 
-    category: tagQueryCategories,
-    tag: z.string(),
-    limit: z.number().min(1).max(20).default(10)
+    category: tagQueryCategories.describe("Sorting category for posts (e.g. trending, hot, created)"),
+    tag: z.string().describe("The tag to filter posts by"),
+    limit: z.number().min(1).max(20).default(10).describe("Number of posts to return (1-20)")
   },
   async ({ category, tag, limit }) => {
     try {
@@ -107,10 +110,11 @@ server.tool(
 // Tool 2: Fetch posts by user ID
 server.tool(
   "get_posts_by_user",
+  "Retrieves posts authored by or in the feed of a specific Hive user.",
   { 
-    category: userQueryCategories,
-    username: z.string(),
-    limit: z.number().min(1).max(20).default(10)
+    category: userQueryCategories.describe("Type of user posts to fetch (blog = posts by user, feed = posts from users they follow)"),
+    username: z.string().describe("Hive username to fetch posts for"),
+    limit: z.number().min(1).max(20).default(10).describe("Number of posts to return (1-20)")
   },
   async ({ category, username, limit }) => {
     try {
