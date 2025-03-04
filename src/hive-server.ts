@@ -1,6 +1,6 @@
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { Client } from "@hiveio/dhive";
+import { Client, PrivateKey } from "@hiveio/dhive";
 import { z } from "zod";
 
 const client = new Client([
@@ -267,8 +267,93 @@ server.tool(
   }
 );
 
+// Tool: Vote on a post
+server.tool(
+  "vote_on_post",
+  "Vote on a Hive post (upvote or downvote) using the configured Hive account.",
+  { 
+    author: z.string().describe("Author of the post to vote on"),
+    permlink: z.string().describe("Permlink of the post to vote on"),
+    weight: z.number().min(-10000).max(10000).describe("Vote weight from -10000 (100% downvote) to 10000 (100% upvote)")
+  },
+  async ({ author, permlink, weight }) => {
+    try {
+      // Get credentials from environment variables
+      const username = process.env.HIVE_USERNAME;
+      const privateKey = process.env.HIVE_POSTING_KEY;
+      
+      if (!username || !privateKey) {
+        return {
+          content: [{ 
+            type: "text" as const, 
+            text: "Error: HIVE_USERNAME or HIVE_POSTING_KEY environment variables are not set" 
+          }],
+          isError: true
+        };
+      }
+
+      // Create the vote operation
+      const vote = {
+        voter: username,
+        author,
+        permlink,
+        weight
+      };
+
+      // Create the broadcast instance and broadcast the vote
+      const result = await client.broadcast.vote(vote, PrivateKey.fromString(privateKey));
+      
+      return {
+        content: [{ 
+          type: "text" as const, 
+          text: JSON.stringify({
+            success: true,
+            transaction_id: result.id,
+            block_num: result.block_num,
+            voter: username,
+            author,
+            permlink,
+            weight
+          }, null, 2), 
+          mimeType: "application/json"
+        }]
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return {
+        content: [{ 
+          type: "text" as const, 
+          text: `Error in vote_on_post: ${errorMessage}`
+        }],
+        isError: true
+      };
+    }
+  }
+);
+
 // Start the server with standard MCP transport
 const startServer = async () => {
+    // Log environment variable status (without exposing the actual private key)
+    if (!process.env.HIVE_USERNAME) {
+      console.error("Warning: HIVE_USERNAME environment variable is not set");
+    } else {
+      console.error(`Info: Using Hive account: ${process.env.HIVE_USERNAME}`);
+    }
+    
+    if (!process.env.HIVE_POSTING_KEY) {
+      console.error("Warning: HIVE_POSTING_KEY environment variable is not set");
+    } else {
+      console.error("Info: HIVE_POSTING_KEY is set");
+      
+      // Validate private key format (without logging the actual key)
+      try {
+        PrivateKey.fromString(process.env.HIVE_POSTING_KEY);
+        console.error("Info: HIVE_POSTING_KEY is valid");
+      } catch (error) {
+        console.error("Warning: HIVE_POSTING_KEY is not a valid private key");
+      }
+    }
+  
   const transport = new StdioServerTransport();
   await server.connect(transport);
 };
