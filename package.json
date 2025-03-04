@@ -7,9 +7,9 @@
     "inspector": "npx @modelcontextprotocol/inspector ts-node src/hive-server.ts"
   },
   "keywords": [],
-  "author": "",
+  "author": "gregory.luneau@gmail.com",
   "license": "ISC",
-  "description": "",
+  "description": "An MCP server that enables AI assistants to interact with the Hive blockchain",
   "dependencies": {
     "@hiveio/dhive": "^1.3.2",
     "@modelcontextprotocol/sdk": "^1.6.1",

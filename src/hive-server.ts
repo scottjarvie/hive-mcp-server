@@ -331,31 +331,117 @@ server.tool(
   }
 );
 
+// Tool: Send HIVE or HBD tokens to another account
+server.tool(
+  "send_token",
+  "Send HIVE or HBD tokens to another Hive account using the configured account credentials.",
+  { 
+    to: z.string().describe("Recipient Hive username"),
+    amount: z.number().positive().describe("Amount of tokens to send"),
+    currency: z.enum(["HIVE", "HBD"]).describe("Currency to send: HIVE or HBD"),
+    memo: z.string().optional().describe("Optional memo to include with the transaction")
+  },
+  async ({ to, amount, currency, memo = "" }) => {
+    try {
+      // Get credentials from environment variables
+      const username = process.env.HIVE_USERNAME;
+      const activeKey = process.env.HIVE_ACTIVE_KEY;
+      
+      if (!username || !activeKey) {
+        return {
+          content: [{ 
+            type: "text" as const, 
+            text: "Error: HIVE_USERNAME or HIVE_ACTIVE_KEY environment variables are not set. Note that transfers require an active key, not a posting key." 
+          }],
+          isError: true
+        };
+      }
+
+      // Format the amount with 3 decimal places and append the currency
+      const formattedAmount = `${amount.toFixed(3)} ${currency}`;
+
+      // Create the transfer operation
+      const transfer = {
+        from: username,
+        to,
+        amount: formattedAmount,
+        memo
+      };
+
+      // Broadcast the transfer using active key (required for transfers)
+      const result = await client.broadcast.transfer(
+        transfer, 
+        PrivateKey.fromString(activeKey)
+      );
+      
+      return {
+        content: [{ 
+          type: "text" as const, 
+          text: JSON.stringify({
+            success: true,
+            transaction_id: result.id,
+            block_num: result.block_num,
+            from: username,
+            to,
+            amount: formattedAmount,
+            memo: memo || "(no memo)"
+          }, null, 2), 
+          mimeType: "application/json"
+        }]
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return {
+        content: [{ 
+          type: "text" as const, 
+          text: `Error in send_token: ${errorMessage}`
+        }],
+        isError: true
+      };
+    }
+  }
+);
+
 // Start the server with standard MCP transport
 const startServer = async () => {
-    // Log environment variable status (without exposing the actual private key)
-    if (!process.env.HIVE_USERNAME) {
-      console.error("Warning: HIVE_USERNAME environment variable is not set");
-    } else {
-      console.error(`Info: Using Hive account: ${process.env.HIVE_USERNAME}`);
-    }
-    
-    if (!process.env.HIVE_POSTING_KEY) {
-      console.error("Warning: HIVE_POSTING_KEY environment variable is not set");
-    } else {
-      console.error("Info: HIVE_POSTING_KEY is set");
-      
-      // Validate private key format (without logging the actual key)
-      try {
-        PrivateKey.fromString(process.env.HIVE_POSTING_KEY);
-        console.error("Info: HIVE_POSTING_KEY is valid");
-      } catch (error) {
-        console.error("Warning: HIVE_POSTING_KEY is not a valid private key");
-      }
-    }
+  // Log environment variable status (without exposing the actual private keys)
+  if (!process.env.HIVE_USERNAME) {
+    console.error("Warning: HIVE_USERNAME environment variable is not set");
+  } else {
+    console.error(`Info: Using Hive account: ${process.env.HIVE_USERNAME}`);
+  }
   
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
+  if (!process.env.HIVE_POSTING_KEY) {
+    console.error("Warning: HIVE_POSTING_KEY environment variable is not set");
+  } else {
+    console.error("Info: HIVE_POSTING_KEY is set");
+    
+    // Validate private key format (without logging the actual key)
+    try {
+      PrivateKey.fromString(process.env.HIVE_POSTING_KEY);
+      console.error("Info: HIVE_POSTING_KEY is valid");
+    } catch (error) {
+      console.error("Warning: HIVE_POSTING_KEY is not a valid private key");
+    }
+  }
+
+  // Add validation for active key which is needed for transfers
+  if (!process.env.HIVE_ACTIVE_KEY) {
+    console.error("Warning: HIVE_ACTIVE_KEY environment variable is not set (required for token transfers)");
+  } else {
+    console.error("Info: HIVE_ACTIVE_KEY is set");
+    
+    // Validate active key format
+    try {
+      PrivateKey.fromString(process.env.HIVE_ACTIVE_KEY);
+      console.error("Info: HIVE_ACTIVE_KEY is valid");
+    } catch (error) {
+      console.error("Warning: HIVE_ACTIVE_KEY is not a valid private key");
+    }
+  }
+
+const transport = new StdioServerTransport();
+await server.connect(transport);
 };
 
 startServer().catch((err) => console.error("Server failed to start:", err));
