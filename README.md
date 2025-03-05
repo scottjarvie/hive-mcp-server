@@ -24,6 +24,11 @@ This server provides a bridge between AI assistants (like Claude) and the Hive b
 - `get_posts_by_user` - Fetch posts from a specific user or their feed
 - `get_account_history` - Get transaction history for an account
 - `vote_on_post` - Vote on Hive content (requires authentication)
+- `create_post` - Create new blog posts on the Hive blockchain
+- `create_comment` - Comment on existing posts or reply to comments
+- `send_token` - Send HIVE or HBD cryptocurrency to other accounts
+- `sign_message` - Sign a message using a Hive private key
+- `verify_signature` - Verify a message signature against a Hive public key
 
 ## Installation
 
@@ -86,12 +91,15 @@ To use this server with Claude Desktop:
       ],
       "env": {
         "HIVE_USERNAME": "your-hive-username",
-        "HIVE_POSTING_KEY": "your-hive-posting-private-key"
+        "HIVE_POSTING_KEY": "your-hive-posting-private-key",
+        "HIVE_ACTIVE_KEY": "your-hive-active-private-key"
       }
     }
   }
 }
 ```
+
+For Windows, use backslashes: `"C:\\absolute\\path\\to\\hive-mcp-server\\src\\hive-server.ts"`
 
 4. Restart Claude Desktop
 
