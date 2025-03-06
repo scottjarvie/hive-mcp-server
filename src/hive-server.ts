@@ -3,7 +3,7 @@ import {
   ResourceTemplate,
 } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { Client, PrivateKey, PublicKey, Signature } from "@hiveio/dhive";
+import { Client, PrivateKey, PublicKey, Signature, cryptoUtils } from "@hiveio/dhive";
 import { z } from "zod";
 
 const client = new Client([
@@ -1034,52 +1034,18 @@ server.tool(
   },
   async ({ message, key_type = "posting" }) => {
     try {
-      // Get and validate the private key
-      let privateKey: PrivateKey;
+      // Get the private key from environment variables
       let keyEnvVar: string | undefined;
 
       switch (key_type) {
         case "posting":
           keyEnvVar = process.env.HIVE_POSTING_KEY;
-          if (!keyEnvVar) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: "Error: HIVE_POSTING_KEY environment variable is not set",
-                },
-              ],
-              isError: true,
-            };
-          }
           break;
         case "active":
           keyEnvVar = process.env.HIVE_ACTIVE_KEY;
-          if (!keyEnvVar) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: "Error: HIVE_ACTIVE_KEY environment variable is not set",
-                },
-              ],
-              isError: true,
-            };
-          }
           break;
         case "memo":
           keyEnvVar = process.env.HIVE_MEMO_KEY;
-          if (!keyEnvVar) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: "Error: HIVE_MEMO_KEY environment variable is not set",
-                },
-              ],
-              isError: true,
-            };
-          }
           break;
         default:
           return {
@@ -1093,7 +1059,21 @@ server.tool(
           };
       }
 
-      // Try to create PrivateKey object
+      // Check if the key is available
+      if (!keyEnvVar) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Error: HIVE_${key_type.toUpperCase()}_KEY environment variable is not set`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      // Create PrivateKey object
+      let privateKey: PrivateKey;
       try {
         privateKey = PrivateKey.fromString(keyEnvVar);
       } catch (error) {
@@ -1101,34 +1081,20 @@ server.tool(
           content: [
             {
               type: "text" as const,
-              text: `Error: Invalid ${key_type} key format: ${
-                error instanceof Error ? error.message : String(error)
-              }`,
+              text: `Error: Invalid ${key_type} key format`,
             },
           ],
           isError: true,
         };
       }
 
-      // Create message buffer with explicit validation
-      if (message.length === 0) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: "Error: Message cannot be empty",
-            },
-          ],
-          isError: true,
-        };
-      }
+      // Hash the message with sha256 before signing
+      const messageHash = cryptoUtils.sha256(message);
 
-      const messageBuffer = Buffer.from(message, "utf8");
-
-      // Sign the message with error handling
+      // Sign the message hash
       let signature: string;
       try {
-        signature = privateKey.sign(messageBuffer).toString();
+        signature = privateKey.sign(messageHash).toString();
       } catch (error) {
         return {
           content: [
@@ -1153,7 +1119,7 @@ server.tool(
             text: JSON.stringify(
               {
                 success: true,
-                message,
+                message_hash: messageHash.toString("hex"),
                 signature,
                 public_key: publicKey,
               },
@@ -1183,9 +1149,13 @@ server.tool(
 // Tool: Verify a message signature
 server.tool(
   "verify_signature",
-  "Verify a message signature against a Hive public key",
+  "Verify a digital signature against a Hive public key",
   {
-    message: z.string().describe("Original message that was signed"),
+    message_hash: z
+      .string()
+      .describe(
+        "The SHA-256 hash of the message in hex format (64 characters)"
+      ),
     signature: z.string().describe("Signature string to verify"),
     public_key: z
       .string()
@@ -1193,12 +1163,11 @@ server.tool(
         "Public key to verify against (with or without the STM prefix)"
       ),
   },
-  async ({ message, signature, public_key }) => {
+  async ({ message_hash, signature, public_key }) => {
     try {
-      // Parse the public key
+      // Parse the public key (handling keys with or without the STM prefix)
       let publicKey;
       try {
-        // Handle keys with or without the STM prefix
         publicKey = public_key.startsWith("STM")
           ? public_key
           : `STM${public_key}`;
@@ -1209,9 +1178,7 @@ server.tool(
           content: [
             {
               type: "text" as const,
-              text: `Error: Invalid public key format: ${
-                error instanceof Error ? error.message : String(error)
-              }`,
+              text: "Error: Invalid public key format",
             },
           ],
           isError: true,
@@ -1227,20 +1194,34 @@ server.tool(
           content: [
             {
               type: "text" as const,
-              text: `Error: Invalid signature format: ${
-                error instanceof Error ? error.message : String(error)
-              }`,
+              text: "Error: Invalid signature format",
             },
           ],
           isError: true,
         };
       }
 
-      // Create message buffer
-      const messageBuffer = Buffer.from(message, "utf8");
+      // Validate and parse the message hash
+      let messageHashBuffer;
+      try {
+        if (!/^[0-9a-fA-F]{64}$/.test(message_hash)) {
+          throw new Error("Message hash must be a 64-character hex string");
+        }
+        messageHashBuffer = Buffer.from(message_hash, "hex");
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Error: Invalid message hash format - must be a 64-character hex string",
+            },
+          ],
+          isError: true,
+        };
+      }
 
-      // Verify the signature
-      const isValid = publicKey.verify(messageBuffer, signatureObj);
+      // Verify the signature against the hash
+      const isValid = publicKey.verify(messageHashBuffer, signatureObj);
 
       return {
         content: [
@@ -1250,7 +1231,7 @@ server.tool(
               {
                 success: true,
                 is_valid: isValid,
-                message,
+                message_hash,
                 public_key: publicKey.toString(),
               },
               null,

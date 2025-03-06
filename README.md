@@ -92,7 +92,8 @@ To use this server with Claude Desktop:
       "env": {
         "HIVE_USERNAME": "your-hive-username",
         "HIVE_POSTING_KEY": "your-hive-posting-private-key",
-        "HIVE_ACTIVE_KEY": "your-hive-active-private-key"
+        "HIVE_ACTIVE_KEY": "your-hive-active-private-key",
+        "HIVE_MEMO_KEY": "your-hive-memo-private-key"
       }
     }
   }
