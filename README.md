@@ -65,6 +65,8 @@ To enable the voting functionality, you'll need to set two environment variables
 ```bash
 export HIVE_USERNAME=your-hive-username
 export HIVE_POSTING_KEY=your-hive-posting-private-key
+export HIVE_ACTIVE_KEY=your-hive-active-private-key
+export HIVE_MEMO_KEY=your-hive-memo-private-key
 ```
 
 **Security Note**: Never share your private keys or commit them to version control. Use environment variables or a secure configuration approach.
@@ -85,10 +87,7 @@ To use this server with Claude Desktop:
   "mcpServers": {
     "hive": {
       "command": "npx",
-      "args": [
-        "node",
-        "/absolute/path/to/hive-mcp-server/dist/index.ts"
-      ],
+      "args": ["-y", "@gluneau/hive-mcp-server"],
       "env": {
         "HIVE_USERNAME": "your-hive-username",
         "HIVE_POSTING_KEY": "your-hive-posting-private-key",
@@ -100,7 +99,8 @@ To use this server with Claude Desktop:
 }
 ```
 
-For Windows, use backslashes: `"C:\\absolute\\path\\to\\hive-mcp-server\\dist\\index.ts"`
+It is the same json for Windsurf, just use it in `windsurf_config.json`.
+For Cursor, use it in `cursor_config.json`.
 
 4. Restart Claude Desktop
 
@@ -118,7 +118,7 @@ Once connected to Claude Desktop or another MCP client, you can ask questions li
 
 ### Project Structure
 
-- `src/hive-server.ts` - Main server implementation
+- `src/index.ts` - Main server implementation
 
 ### Dependencies
 
