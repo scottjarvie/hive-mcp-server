@@ -1,1 +1,57 @@
-node_modules
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# TypeScript compiled output
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# Coverage reports
+coverage/
+.nyc_output/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Project specific
+.mcp-history/
+.mcp-cache/
+
+# NPM package files
+.npm
+*.tgz
+.yarn-integrity
+
+# Test output
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
+# Miscellaneous
+.tmp/
+temp/
+*.bak

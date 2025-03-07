@@ -1,6 +1,5 @@
 import {
   McpServer,
-  ResourceTemplate,
 } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { Client, PrivateKey, PublicKey, Signature, cryptoUtils } from "@hiveio/dhive";
@@ -15,60 +14,450 @@ const client = new Client([
 
 const server = new McpServer({ name: "HiveServer", version: "1.0.1" });
 
-// Resource 1: Fetch account information
-server.resource(
-  "account",
-  new ResourceTemplate("hive://accounts/{account}", { list: undefined }),
-  // "Fetches detailed information about a Hive blockchain account including balance, authority, voting power, and other account metrics."
-  async (uri, { account }) => {
+// Tool: Get account information (converted from resource)
+server.tool(
+  "get_account_info",
+  "Fetches detailed information about a Hive blockchain account including balance, authority, voting power, and other account metrics.",
+  {
+    username: z.string().describe("Hive username to fetch information for"),
+  },
+  async ({ username }) => {
     try {
-      const accounts = await client.database.getAccounts(
-        Array.isArray(account) ? account : [account]
-      );
+      const accounts = await client.database.getAccounts([username]);
       if (accounts.length === 0) {
-        throw new Error(`Account ${account} not found`);
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Error: Account ${username} not found`,
+            },
+          ],
+          isError: true,
+        };
       }
+      
       const accountData = accounts[0];
-      const text = JSON.stringify(accountData, null, 2);
-      return { contents: [{ uri: uri.href, text }] };
+      
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(accountData, null, 2),
+            mimeType: "application/json",
+          },
+        ],
+      };
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      throw new Error(`Error fetching account: ${errorMessage}`);
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Error in create_comment: ${errorMessage}`,
+          },
+        ],
+        isError: true,
+      };
     }
   }
 );
 
-// Resource 2: Fetch a specific post
-server.resource(
-  "post",
-  new ResourceTemplate("hive://posts/{author}/{permlink}", { list: undefined }),
-  // "Retrieves a specific Hive blog post identified by author and permlink, including the post title, content, and metadata.",
-  async (uri, { author, permlink }) => {
+// Tool: Sign a message with a private key
+server.tool(
+  "sign_message",
+  "Sign a message using a Hive private key from environment variables.",
+  {
+    message: z.string().min(1).describe("Message to sign (must not be empty)"),
+    key_type: z
+      .enum(["posting", "active", "memo"])
+      .optional()
+      .default("posting")
+      .describe(
+        "Type of key to use: 'posting', 'active', or 'memo'. Defaults to 'posting' if not specified."
+      ),
+  },
+  async ({ message, key_type = "posting" }) => {
+    try {
+      // Get the private key from environment variables
+      let keyEnvVar: string | undefined;
+
+      switch (key_type) {
+        case "posting":
+          keyEnvVar = process.env.HIVE_POSTING_KEY;
+          break;
+        case "active":
+          keyEnvVar = process.env.HIVE_ACTIVE_KEY;
+          break;
+        case "memo":
+          keyEnvVar = process.env.HIVE_MEMO_KEY;
+          break;
+        default:
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Error: Invalid key_type: ${key_type}`,
+              },
+            ],
+            isError: true,
+          };
+      }
+
+      // Check if the key is available
+      if (!keyEnvVar) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Error: HIVE_${key_type.toUpperCase()}_KEY environment variable is not set`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      // Create PrivateKey object
+      let privateKey: PrivateKey;
+      try {
+        privateKey = PrivateKey.fromString(keyEnvVar);
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Error: Invalid ${key_type} key format`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      // Hash the message with sha256 before signing
+      const messageHash = cryptoUtils.sha256(message);
+
+      // Sign the message hash
+      let signature: string;
+      try {
+        signature = privateKey.sign(messageHash).toString();
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Error signing message: ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      // Get the public key
+      const publicKey = privateKey.createPublic().toString();
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(
+              {
+                success: true,
+                message_hash: messageHash.toString("hex"),
+                signature,
+                public_key: publicKey,
+              },
+              null,
+              2
+            ),
+            mimeType: "application/json",
+          },
+        ],
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Error in sign_message: ${errorMessage}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+// Tool: Verify a message signature
+server.tool(
+  "verify_signature",
+  "Verify a digital signature against a Hive public key",
+  {
+    message_hash: z
+      .string()
+      .describe(
+        "The SHA-256 hash of the message in hex format (64 characters)"
+      ),
+    signature: z.string().describe("Signature string to verify"),
+    public_key: z
+      .string()
+      .describe(
+        "Public key to verify against (with or without the STM prefix)"
+      ),
+  },
+  async ({ message_hash, signature, public_key }) => {
+    try {
+      // Parse the public key (handling keys with or without the STM prefix)
+      let publicKey;
+      try {
+        publicKey = public_key.startsWith("STM")
+          ? public_key
+          : `STM${public_key}`;
+
+        publicKey = PublicKey.fromString(publicKey);
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Error: Invalid public key format",
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      // Parse the signature
+      let signatureObj;
+      try {
+        signatureObj = Signature.fromString(signature);
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Error: Invalid signature format",
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      // Validate and parse the message hash
+      let messageHashBuffer;
+      try {
+        if (!/^[0-9a-fA-F]{64}$/.test(message_hash)) {
+          throw new Error("Message hash must be a 64-character hex string");
+        }
+        messageHashBuffer = Buffer.from(message_hash, "hex");
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Error: Invalid message hash format - must be a 64-character hex string",
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      // Verify the signature against the hash
+      const isValid = publicKey.verify(messageHashBuffer, signatureObj);
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(
+              {
+                success: true,
+                is_valid: isValid,
+                message_hash,
+                public_key: publicKey.toString(),
+              },
+              null,
+              2
+            ),
+            mimeType: "application/json",
+          },
+        ],
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Error in verify_signature: ${errorMessage}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+// Tool: Get blockchain information
+server.tool(
+  "get_chain_properties",
+  "Fetch current Hive blockchain properties and statistics",
+  {},
+  async () => {
+    try {
+      // Fetch global properties
+      const dynamicProps = await client.database.getDynamicGlobalProperties();
+      const chainProps = await client.database.getChainProperties();
+      const currentMedianHistoryPrice = await client.database.getCurrentMedianHistoryPrice();
+      
+      // Format the response
+      const response = {
+        dynamic_properties: dynamicProps,
+        chain_properties: chainProps,
+        current_median_history_price: {
+          base: currentMedianHistoryPrice.base,
+          quote: currentMedianHistoryPrice.quote,
+        },
+        timestamp: new Date().toISOString(),
+      };
+      
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(response, null, 2),
+            mimeType: "application/json",
+          },
+        ],
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Error fetching chain properties: ${errorMessage}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+// Tool: Get delegations for an account
+server.tool(
+  "get_vesting_delegations",
+  "Get a list of vesting delegations made by a specific Hive account",
+  {
+    username: z.string().describe("Hive account to get delegations for"),
+    limit: z.number().min(1).max(1000).default(100).describe("Maximum number of delegations to retrieve"),
+    from: z.string().optional().describe("Optional starting account for pagination"),
+  },
+  async ({ username, limit, from = "" }) => {
+    try {
+      const delegations = await client.database.getVestingDelegations(username, from, limit);
+      
+      // Format the data for better readability
+      const formattedDelegations = delegations.map(delegation => ({
+        delegator: delegation.delegator,
+        delegatee: delegation.delegatee,
+        vesting_shares: delegation.vesting_shares,
+        min_delegation_time: delegation.min_delegation_time,
+      }));
+      
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify({
+              account: username,
+              delegations_count: formattedDelegations.length,
+              delegations: formattedDelegations
+            }, null, 2),
+            mimeType: "application/json",
+          },
+        ],
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Error fetching vesting delegations: ${errorMessage}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+// Tool: Get post content (converted from resource)
+server.tool(
+  "get_post_content",
+  "Retrieves a specific Hive blog post identified by author and permlink, including the post title, content, and metadata.",
+  {
+    author: z.string().describe("Author of the post"),
+    permlink: z.string().describe("Permlink of the post"),
+  },
+  async ({ author, permlink }) => {
     try {
       const content = await client.database.call("get_content", [
         author,
         permlink,
       ]);
+      
       if (!content.author) {
-        throw new Error(`Post not found: ${author}/${permlink}`);
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Error: Post not found: ${author}/${permlink}`,
+            },
+          ],
+          isError: true,
+        };
       }
-      const text = JSON.stringify(
-        {
-          title: content.title,
-          author: content.author,
-          body: content.body,
-        },
-        null,
-        2
-      );
+      
       return {
-        contents: [{ uri: uri.href, text, mimeType: "application/json" }],
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(
+              {
+                title: content.title,
+                author: content.author,
+                body: content.body,
+                created: content.created,
+                last_update: content.last_update,
+                category: content.category,
+                tags: content.json_metadata ? JSON.parse(content.json_metadata).tags || [] : [],
+                url: `https://hive.blog/@${author}/${permlink}`,
+              },
+              null,
+              2
+            ),
+            mimeType: "application/json",
+          },
+        ],
       };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      throw new Error(`Error fetching post: ${errorMessage}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Error fetching post: ${errorMessage}`,
+          },
+        ],
+        isError: true,
+      };
     }
   }
 );
@@ -89,7 +478,7 @@ const tagQueryCategories = z.enum([
 // Valid discussion query categories for user-based queries
 const userQueryCategories = z.enum(["blog", "feed"]);
 
-// Tool 1: Fetch posts by tag
+// Tool: Fetch posts by tag
 server.tool(
   "get_posts_by_tag",
   "Retrieves Hive posts filtered by a specific tag and sorted by a category like trending, hot, or created.",
@@ -147,7 +536,7 @@ server.tool(
   }
 );
 
-// Tool 2: Fetch posts by user ID
+// Tool: Fetch posts by user ID
 server.tool(
   "get_posts_by_user",
   "Retrieves posts authored by or in the feed of a specific Hive user.",
@@ -206,7 +595,7 @@ server.tool(
   }
 );
 
-// Resource 3: Fetch account history
+// Tool: Fetch account history
 server.tool(
   "get_account_history",
   "Retrieves transaction history for a Hive account with optional operation type filtering.",
@@ -1010,245 +1399,6 @@ server.tool(
           {
             type: "text" as const,
             text: `Error in create_comment: ${errorMessage}`,
-          },
-        ],
-        isError: true,
-      };
-    }
-  }
-);
-
-// Tool: Sign a message with a private key
-server.tool(
-  "sign_message",
-  "Sign a message using a Hive private key from environment variables.",
-  {
-    message: z.string().min(1).describe("Message to sign (must not be empty)"),
-    key_type: z
-      .enum(["posting", "active", "memo"])
-      .optional()
-      .default("posting")
-      .describe(
-        "Type of key to use: 'posting', 'active', or 'memo'. Defaults to 'posting' if not specified."
-      ),
-  },
-  async ({ message, key_type = "posting" }) => {
-    try {
-      // Get the private key from environment variables
-      let keyEnvVar: string | undefined;
-
-      switch (key_type) {
-        case "posting":
-          keyEnvVar = process.env.HIVE_POSTING_KEY;
-          break;
-        case "active":
-          keyEnvVar = process.env.HIVE_ACTIVE_KEY;
-          break;
-        case "memo":
-          keyEnvVar = process.env.HIVE_MEMO_KEY;
-          break;
-        default:
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: `Error: Invalid key_type: ${key_type}`,
-              },
-            ],
-            isError: true,
-          };
-      }
-
-      // Check if the key is available
-      if (!keyEnvVar) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Error: HIVE_${key_type.toUpperCase()}_KEY environment variable is not set`,
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      // Create PrivateKey object
-      let privateKey: PrivateKey;
-      try {
-        privateKey = PrivateKey.fromString(keyEnvVar);
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Error: Invalid ${key_type} key format`,
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      // Hash the message with sha256 before signing
-      const messageHash = cryptoUtils.sha256(message);
-
-      // Sign the message hash
-      let signature: string;
-      try {
-        signature = privateKey.sign(messageHash).toString();
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Error signing message: ${
-                error instanceof Error ? error.message : String(error)
-              }`,
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      // Get the public key
-      const publicKey = privateKey.createPublic().toString();
-
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(
-              {
-                success: true,
-                message_hash: messageHash.toString("hex"),
-                signature,
-                public_key: publicKey,
-              },
-              null,
-              2
-            ),
-            mimeType: "application/json",
-          },
-        ],
-      };
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: `Error in sign_message: ${errorMessage}`,
-          },
-        ],
-        isError: true,
-      };
-    }
-  }
-);
-
-// Tool: Verify a message signature
-server.tool(
-  "verify_signature",
-  "Verify a digital signature against a Hive public key",
-  {
-    message_hash: z
-      .string()
-      .describe(
-        "The SHA-256 hash of the message in hex format (64 characters)"
-      ),
-    signature: z.string().describe("Signature string to verify"),
-    public_key: z
-      .string()
-      .describe(
-        "Public key to verify against (with or without the STM prefix)"
-      ),
-  },
-  async ({ message_hash, signature, public_key }) => {
-    try {
-      // Parse the public key (handling keys with or without the STM prefix)
-      let publicKey;
-      try {
-        publicKey = public_key.startsWith("STM")
-          ? public_key
-          : `STM${public_key}`;
-
-        publicKey = PublicKey.fromString(publicKey);
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: "Error: Invalid public key format",
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      // Parse the signature
-      let signatureObj;
-      try {
-        signatureObj = Signature.fromString(signature);
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: "Error: Invalid signature format",
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      // Validate and parse the message hash
-      let messageHashBuffer;
-      try {
-        if (!/^[0-9a-fA-F]{64}$/.test(message_hash)) {
-          throw new Error("Message hash must be a 64-character hex string");
-        }
-        messageHashBuffer = Buffer.from(message_hash, "hex");
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: "Error: Invalid message hash format - must be a 64-character hex string",
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      // Verify the signature against the hash
-      const isValid = publicKey.verify(messageHashBuffer, signatureObj);
-
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(
-              {
-                success: true,
-                is_valid: isValid,
-                message_hash,
-                public_key: publicKey.toString(),
-              },
-              null,
-              2
-            ),
-            mimeType: "application/json",
-          },
-        ],
-      };
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: `Error in verify_signature: ${errorMessage}`,
           },
         ],
         isError: true,

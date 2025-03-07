@@ -86,8 +86,8 @@ To use this server with Claude Desktop:
     "hive": {
       "command": "npx",
       "args": [
-        "ts-node",
-        "/absolute/path/to/hive-mcp-server/src/hive-server.ts"
+        "node",
+        "/absolute/path/to/hive-mcp-server/dist/index.ts"
       ],
       "env": {
         "HIVE_USERNAME": "your-hive-username",
@@ -100,7 +100,7 @@ To use this server with Claude Desktop:
 }
 ```
 
-For Windows, use backslashes: `"C:\\absolute\\path\\to\\hive-mcp-server\\src\\hive-server.ts"`
+For Windows, use backslashes: `"C:\\absolute\\path\\to\\hive-mcp-server\\dist\\index.ts"`
 
 4. Restart Claude Desktop
 
