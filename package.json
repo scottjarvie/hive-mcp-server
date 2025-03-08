@@ -40,10 +40,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/gluneau/hive-mcp-server.git"
+    "url": "git+https://github.com/gluneau/hive-mcp-server.git"
   },
   "homepage": "https://github.com/gluneau/hive-mcp-server#readme",
   "bugs": {
     "url": "https://github.com/gluneau/hive-mcp-server/issues"
-  }
+  },
+  "types": "./dist/index.d.ts"
 }
