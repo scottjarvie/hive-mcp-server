@@ -1,4 +1,5 @@
 # Hive MCP Server
+
 [![smithery badge](https://smithery.ai/badge/@gluneau/hive-mcp-server)](https://smithery.ai/server/@gluneau/hive-mcp-server)
 
 An MCP server that enables AI assistants to interact with the Hive blockchain through the Model Context Protocol.
@@ -13,6 +14,7 @@ This server provides a bridge between AI assistants (like Claude) and the Hive b
 - Vote on content and create posts (when properly authenticated)
 - Send HIVE or HBD tokens to other accounts
 - Sign and verify messages with Hive keys
+- Send and receive encrypted messages
 
 ## Features
 
@@ -40,6 +42,13 @@ This server provides a bridge between AI assistants (like Claude) and the Hive b
 - `sign_message` - Sign a message using a Hive private key
 - `verify_signature` - Verify a message signature against a Hive public key
 
+#### Encrypted Messaging
+
+- `encrypt_message` - Encrypt a message for a specific Hive account
+- `decrypt_message` - Decrypt an encrypted message from a specific Hive account
+- `send_encrypted_message` - Send an encrypted message using a token transfer
+- `get_encrypted_messages` - Retrieve and optionally decrypt messages from account history
+
 ## Debugging with MCP Inspector
 
 The MCP Inspector provides an interactive interface for testing and debugging the server:
@@ -56,7 +65,7 @@ To enable authenticated operations (voting, posting, sending tokens), you'll nee
 export HIVE_USERNAME=your-hive-username
 export HIVE_POSTING_KEY=your-hive-posting-private-key  # For content operations
 export HIVE_ACTIVE_KEY=your-hive-active-private-key    # For token transfers
-export HIVE_MEMO_KEY=your-hive-memo-private-key        # For encrypted memos
+export HIVE_MEMO_KEY=your-hive-memo-private-key        # For encrypted messaging
 ```
 
 **Security Note**: Never share your private keys or commit them to version control. Use environment variables or a secure configuration approach.
@@ -109,6 +118,11 @@ Once connected to an MCP client, you can ask questions like:
 - "Sign this message with my Hive posting key: 'Verifying my identity'"
 - "What are the current Hive blockchain properties?"
 - "Show me the vesting delegations made by user 'grace'"
+- "Encrypt this message for user 'alice': 'This is a secret message'"
+- "Decrypt this message from 'bob': '#4f3a5b...'"
+- "Send an encrypted message to 'charlie' saying 'Let's meet tomorrow'"
+- "Show me my encrypted messages and decrypt them"
+- "Get the last 10 encrypted messages I've exchanged with 'dave'"
 
 ## Tool Documentation
 
@@ -225,11 +239,47 @@ Verify a digital signature against a Hive public key.
   - `signature`: Signature string to verify
   - `public_key`: Public key to verify against
 
+### `encrypt_message`
+
+Encrypt a message for a specific Hive account using memo encryption.
+
+- Parameters:
+  - `message`: Message to encrypt
+  - `recipient`: Hive username of the recipient
+
+### `decrypt_message`
+
+Decrypt an encrypted message received from a specific Hive account.
+
+- Parameters:
+  - `encrypted_message`: Encrypted message (starts with #)
+  - `sender`: Hive username of the sender
+
+### `send_encrypted_message`
+
+Send an encrypted message to a Hive account using a small token transfer.
+
+- Parameters:
+  - `message`: Message to encrypt and send
+  - `recipient`: Hive username of the recipient
+  - `amount`: Amount of HIVE to send (minimum 0.001, default: 0.001)
+
+### `get_encrypted_messages`
+
+Retrieve encrypted messages from account history with optional decryption.
+
+- Parameters:
+  - `username`: Hive username to fetch encrypted messages for
+  - `limit`: Maximum number of messages to retrieve (default: 20)
+  - `decrypt`: Whether to attempt decryption of messages (default: false)
+
 ## Development
 
 ### Project Structure
 
 - `src/index.ts` - Main server implementation
+- `src/tools/` - Implementation of all tools
+- `src/schemas/` - Zod schemas for tool parameters
 
 ### Dependencies
 
