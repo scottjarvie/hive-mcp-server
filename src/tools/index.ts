@@ -7,6 +7,7 @@ import * as transactionTools from './transaction';
 import * as contentCreationTools from './content-creation';
 import * as cryptoTools from './crypto';
 import * as blockchainTools from './blockchain';
+import * as messagingTools from './messaging';
 import { adaptHandler } from '../utils/response';
 
 // Register tools with the server
@@ -106,5 +107,34 @@ export function registerTools(server: McpServer): void {
     'Fetch current Hive blockchain properties and statistics',
     schemas.getChainPropertiesSchema,
     adaptHandler(blockchainTools.getChainProperties)
+  );
+
+  // Messaging tools
+  server.tool(
+    'encrypt_message',
+    'Encrypt a message for a specific Hive account using memo encryption',
+    schemas.encryptMessageSchema,
+    adaptHandler(messagingTools.encryptMessage)
+  );
+
+  server.tool(
+    'decrypt_message',
+    'Decrypt an encrypted message received from a specific Hive account',
+    schemas.decryptMessageSchema,
+    adaptHandler(messagingTools.decryptMessage)
+  );
+
+  server.tool(
+    'send_encrypted_message',
+    'Send an encrypted message to a Hive account using a small token transfer',
+    schemas.sendEncryptedMessageSchema,
+    adaptHandler(messagingTools.sendEncryptedMessage)
+  );
+
+  server.tool(
+    'get_encrypted_messages',
+    'Retrieve encrypted messages from account history with optional decryption',
+    schemas.getEncryptedMessagesSchema,
+    adaptHandler(messagingTools.getEncryptedMessages)
   );
 }
