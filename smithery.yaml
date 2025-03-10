@@ -1,0 +1,40 @@
+# Smithery configuration file: https://smithery.ai/docs/config#smitheryyaml
+
+startCommand:
+  type: stdio
+  configSchema:
+    # JSON Schema defining the configuration options for the MCP.
+    type: object
+    required: []
+    properties:
+      hiveUsername:
+        type: string
+        description: Hive blockchain username. Required for authenticated operations.
+      hivePostingKey:
+        type: string
+        description: Hive posting private key. Required for content operations like
+          voting or posting.
+      hiveActiveKey:
+        type: string
+        description: Hive active private key. Required for token transfers.
+      hiveMemoKey:
+        type: string
+        description: Hive memo private key. Required for encrypted memos.
+  commandFunction:
+    # A JS function that produces the CLI command based on the given config to start the MCP on stdio.
+    |-
+    (config) => ({
+      command: 'node',
+      args: ['dist/index.js'],
+      env: {
+        HIVE_USERNAME: config.hiveUsername || '',
+        HIVE_POSTING_KEY: config.hivePostingKey || '',
+        HIVE_ACTIVE_KEY: config.hiveActiveKey || '',
+        HIVE_MEMO_KEY: config.hiveMemoKey || ''
+      }
+    })
+  exampleConfig:
+    hiveUsername: example-user
+    hivePostingKey: 5KEXAMPLEPOSTINGKEYxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    hiveActiveKey: 5KEXAMPLEACTIVEKEYxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    hiveMemoKey: 5KEXAMPLEMEMOKEYxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
