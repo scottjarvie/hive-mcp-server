@@ -1,4 +1,5 @@
 # Hive MCP Server
+[![smithery badge](https://smithery.ai/badge/@gluneau/hive-mcp-server)](https://smithery.ai/server/@gluneau/hive-mcp-server)
 
 An MCP server that enables AI assistants to interact with the Hive blockchain through the Model Context Protocol.
 
