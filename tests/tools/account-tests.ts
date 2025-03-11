@@ -1,24 +1,6 @@
-/**
- * Tests for account-related tools
- * 
- * These tests validate the functionality of the account-related tools:
- * - getAccountInfo
- * - getAccountHistory
- * - getVestingDelegations
- */
-
-// const accountTools = require('../../src/tools/account');
-const config = require('../../src/config');
-
-// Helper function to check if we can run authenticated tests
-function canRunAuthenticatedTests() {
-  return Boolean(process.env.HIVE_USERNAME);
-}
-
-// Get a test username - either from env vars or a known account
-function getTestUsername() {
-  return process.env.HIVE_USERNAME || 'helo';
-}
+// tests/tools/account.test.ts
+import { getAccountInfo, getAccountHistory, getVestingDelegations } from '../../src/tools/account';
+import { canRunAuthenticatedTests, getTestUsername } from '../utils/test-helpers';
 
 describe('Account Tools', () => {
   // Skip all tests if we can't run authenticated tests
@@ -30,7 +12,7 @@ describe('Account Tools', () => {
       const testUsername = getTestUsername();
       
       // Act
-      const result = await accountTools.getAccountInfo({ username: testUsername });
+      const result = await getAccountInfo({ username: testUsername });
       
       // Assert
       expect(result).toBeDefined();
@@ -54,7 +36,7 @@ describe('Account Tools', () => {
       const nonExistentUsername = 'this-user-does-not-exist-on-hive-blockchain-123456789';
       
       // Act
-      const result = await accountTools.getAccountInfo({ username: nonExistentUsername });
+      const result = await getAccountInfo({ username: nonExistentUsername });
       
       // Assert
       expect(result).toBeDefined();
@@ -70,7 +52,7 @@ describe('Account Tools', () => {
       const testUsername = getTestUsername();
       
       // Act
-      const result = await accountTools.getAccountHistory({ 
+      const result = await getAccountHistory({ 
         username: testUsername, 
         limit: 5,
         operation_filter: undefined
@@ -108,7 +90,7 @@ describe('Account Tools', () => {
       const filterTypes = ['transfer']; // Only show transfer operations
       
       // Act
-      const result = await accountTools.getAccountHistory({ 
+      const result = await getAccountHistory({ 
         username: testUsername, 
         limit: 10,
         operation_filter: filterTypes
@@ -135,7 +117,7 @@ describe('Account Tools', () => {
       const testUsername = getTestUsername();
       
       // Act
-      const result = await accountTools.getVestingDelegations({ 
+      const result = await getVestingDelegations({ 
         username: testUsername, 
         limit: 5, 
         from: undefined
@@ -170,7 +152,7 @@ describe('Account Tools', () => {
       const newAccountUsername = 'test-account-no-delegations';
       
       // Act
-      const result = await accountTools.getVestingDelegations({ 
+      const result = await getVestingDelegations({ 
         username: newAccountUsername, 
         limit: 10, 
         from: undefined

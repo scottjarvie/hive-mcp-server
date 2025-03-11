@@ -1,5 +1,5 @@
 // Global setup for Jest tests
-require('dotenv').config();
+import 'dotenv/config';
 
 // Check if required environment variables are set
 const requiredEnvVars = [

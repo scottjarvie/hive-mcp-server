@@ -1,8 +1,8 @@
-# Hive MCP Server Tests
+# Testing Guide for Hive MCP Server
 
-This directory contains tests for the Hive MCP Server.
+This guide explains how to properly run tests for the Hive MCP Server project.
 
-## Test Organization
+## Test Structure
 
 The tests are organized to mirror the project structure:
 
@@ -13,17 +13,51 @@ The tests are organized to mirror the project structure:
 - `tests/utils/` - Tests for utility functions
   - `response.test.ts` - Tests for response formatting utilities
 - `tests/config/` - Tests for configuration modules
-  - `client.test.ts` - Tests for Hive client configuration
   - `index.test.ts` - Tests for general configuration handling
 - `tests/integration.test.ts` - Integration tests across multiple modules
 
+## Prerequisites
+
+Before running tests, make sure you have:
+
+1. Node.js (v16 or later) installed
+2. NPM or Yarn installed
+3. Run `npm install` to install all dependencies
+4. Set up environment variables (see below)
+
+## Environment Variables
+
+Some tests require authentication with the Hive blockchain. To run these tests, you'll need to set up the following environment variables:
+
+```bash
+export HIVE_USERNAME=your-hive-username
+export HIVE_POSTING_KEY=your-hive-posting-private-key
+export HIVE_ACTIVE_KEY=your-hive-active-private-key
+export HIVE_MEMO_KEY=your-hive-memo-private-key
+```
+
+If these environment variables are not set, tests requiring authentication will be automatically skipped.
+
+You can create a `.env` file in the project root with these variables instead of setting them in your shell environment:
+
+```
+HIVE_USERNAME=your-hive-username
+HIVE_POSTING_KEY=your-hive-posting-private-key
+HIVE_ACTIVE_KEY=your-hive-active-private-key
+HIVE_MEMO_KEY=your-hive-memo-private-key
+```
+
 ## Running Tests
+
+### All Tests
 
 To run all tests:
 
 ```bash
 npm test
 ```
+
+### Specific Test Categories
 
 To run specific test categories:
 
@@ -34,23 +68,20 @@ npm run test:account
 # Run only the blockchain tests
 npm run test:blockchain
 
-# Run tests in watch mode (auto-rerun on file changes)
+# Run only the crypto tests
+npm run test:crypto
+
+# Run integration tests
+npm run test:integration
+```
+
+### Watch Mode
+
+To run tests in watch mode (auto-rerun on file changes):
+
+```bash
 npm run test:watch
 ```
-
-## Environment Variables
-
-Tests will use the environment variables configured in your `.env` file or the current environment.
-For authenticated tests, the following variables are required:
-
-```
-HIVE_USERNAME=your-hive-username
-HIVE_POSTING_KEY=your-hive-posting-private-key
-HIVE_ACTIVE_KEY=your-hive-active-private-key
-HIVE_MEMO_KEY=your-hive-memo-private-key
-```
-
-If these variables are not available, tests that require authentication will be skipped.
 
 ## Test Philosophy
 
@@ -65,13 +96,29 @@ The tests do not use mocks but instead interact with the actual Hive blockchain.
 This provides more realistic testing but also means that tests may occasionally fail due to
 network issues or changes in the blockchain state.
 
-## Adding New Tests
+## Troubleshooting
 
-When adding new tools or modifying existing ones, please maintain the same test structure:
+### Test failures due to network issues
 
-1. Create unit tests for each tool function
-2. Test both success and failure cases
-3. Verify that error messages are informative
-4. Add integration tests for new functionality that interacts with other components
+If tests fail with timeout or network errors, try running them again after a few minutes. The Hive blockchain API nodes might be temporarily unavailable or overloaded.
 
-All tests should be written in TypeScript and follow the existing patterns.
+### Tests failing due to missing environment variables
+
+If tests are failing because they need authentication, make sure your environment variables are correctly set. You can check this with:
+
+```bash
+echo $HIVE_USERNAME
+```
+
+### Running tests with different configurations
+
+You can temporarily modify the tests to use different settings by editing the `jest.config.js` file. For example, to increase the timeout for API calls:
+
+```javascript
+// in jest.config.js
+module.exports = {
+  // ...other settings
+  testTimeout: 30000, // increase to 30 seconds
+  // ...
+};
+```

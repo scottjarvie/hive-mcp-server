@@ -1,17 +1,11 @@
-/**
- * Tests for blockchain-related tools
- * 
- * These tests validate the functionality of the blockchain-related tools:
- * - getChainProperties
- */
-
-// const blockchainTools = require('../../src/tools/blockchain');
+// tests/tools/blockchain.test.ts
+import { getChainProperties } from '../../src/tools/blockchain';
 
 describe('Blockchain Tools', () => {
   describe('getChainProperties', () => {
     it('should fetch blockchain properties successfully', async () => {
       // Act
-      const result = await blockchainTools.getChainProperties({});
+      const result = await getChainProperties({});
       
       // Assert
       expect(result).toBeDefined();
@@ -52,7 +46,7 @@ describe('Blockchain Tools', () => {
     
     it('should include timestamp in response', async () => {
       // Act
-      const result = await blockchainTools.getChainProperties({});
+      const result = await getChainProperties({});
       
       // Assert
       const chainData = JSON.parse(result.content[0].text);

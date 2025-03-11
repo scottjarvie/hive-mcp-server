@@ -1,15 +1,7 @@
-/**
- * Tests for crypto-related tools
- * 
- * These tests validate the functionality of the cryptography-related tools:
- * - signMessage
- * - verifySignature
- */
-
-const { signMessage, verifySignature } = require('../../src/tools/crypto');
-const { PrivateKey, cryptoUtils } = require('@hiveio/dhive');
-
-// import { canRunAuthenticatedTests } from '../utils/test-helpers';
+// tests/tools/crypto.test.ts
+import { PrivateKey, cryptoUtils } from '@hiveio/dhive';
+import { signMessage, verifySignature } from '../../src/tools/crypto';
+import { canRunAuthenticatedTests } from '../utils/test-helpers';
 
 describe('Crypto Tools', () => {
   // Skip all tests if we can't run authenticated tests

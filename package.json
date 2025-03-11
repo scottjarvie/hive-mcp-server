@@ -12,10 +12,12 @@
     "build": "rimraf dist && tsc && shx chmod +x dist/index.js",
     "prepare": "npm run build",
     "watch": "tsc --watch",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:account": "jest tests/tools/account.test.ts",
-    "test:blockchain": "jest tests/tools/blockchain.test.ts"
+    "test": "jest --config jest.config.js",
+    "test:watch": "jest --watch --config jest.config.js",
+    "test:account": "jest tests/tools/account.test.ts --config jest.config.js",
+    "test:blockchain": "jest tests/tools/blockchain.test.ts --config jest.config.js",
+    "test:crypto": "jest tests/tools/crypto.test.ts --config jest.config.js",
+    "test:integration": "jest tests/integration.test.ts --config jest.config.js"
   },
   "author": "gregory.luneau@gmail.com",
   "license": "ISC",
