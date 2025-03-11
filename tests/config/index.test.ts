@@ -1,0 +1,118 @@
+/**
+ * Tests for configuration module
+ * 
+ * These tests validate the config management functionality
+ */
+
+const configModule = require('../../src/config');
+
+describe('Configuration Module', () => {
+  const originalEnv = process.env;
+
+  // Save original environment variables and restore them after tests
+  beforeEach(() => {
+    jest.resetModules();
+    process.env = { ...originalEnv };
+  });
+
+  afterAll(() => {
+    process.env = originalEnv;
+  });
+
+  describe('Configuration Structure', () => {
+    it('should have the expected structure', () => {
+      expect(configModule).toBeDefined();
+      expect(configModule.default).toBeDefined();
+      const config = configModule.default;
+      
+      expect(config.hive).toBeDefined();
+      expect(config.server).toBeDefined();
+      expect(config.log).toBeDefined();
+      
+      // Server config
+      expect(config.server.name).toBeDefined();
+      expect(config.server.version).toBeDefined();
+      
+      // Log config
+      expect(config.log.logLevel).toBeDefined();
+      expect(['debug', 'info', 'warn', 'error']).toContain(config.log.logLevel);
+    });
+    
+    it('should read environment variables for Hive credentials', () => {
+      const config = configModule.default;
+      // The values in config should match the environment variables
+      expect(config.hive.username).toBe(process.env.HIVE_USERNAME);
+      expect(config.hive.postingKey).toBe(process.env.HIVE_POSTING_KEY);
+      expect(config.hive.activeKey).toBe(process.env.HIVE_ACTIVE_KEY);
+      expect(config.hive.memoKey).toBe(process.env.HIVE_MEMO_KEY);
+    });
+  });
+  
+  describe('getConfig function', () => {
+    it('should return the current configuration', () => {
+      const currentConfig = configModule.getConfig();
+      expect(currentConfig).toEqual(configModule.default);
+    });
+  });
+  
+  describe('validatePrivateKey function', () => {
+    it('should return false for undefined keys', () => {
+      expect(configModule.validatePrivateKey(undefined)).toBe(false);
+    });
+    
+    it('should return false for invalid key formats', () => {
+      expect(configModule.validatePrivateKey('invalid-key')).toBe(false);
+      expect(configModule.validatePrivateKey('12345')).toBe(false);
+      expect(configModule.validatePrivateKey('NOT_A_VALID_KEY')).toBe(false);
+    });
+    
+    it('should validate correctly formatted WIF private key', () => {
+      // This is a test private key, not a real one
+      const testKey = '5JfwDztjHYDDdKnCpjY6cwUQfM4hbtYmSJLjGd6KcK6aEb6rbQD';
+      expect(configModule.validatePrivateKey(testKey)).toBe(true);
+    });
+  });
+  
+  describe('Authentication capability functions', () => {
+    it('should check if authenticated operations are available', () => {
+      // First with no credentials
+      process.env.HIVE_USERNAME = undefined;
+      process.env.HIVE_POSTING_KEY = undefined;
+      
+      // Need to re-import to refresh the configuration with new env variables
+      jest.resetModules();
+      const newConfigModule = require('../../src/config');
+      
+      expect(newConfigModule.canPerformAuthenticatedOperations()).toBe(false);
+      
+      // Now with valid credentials
+      process.env.HIVE_USERNAME = 'test-user';
+      process.env.HIVE_POSTING_KEY = '5JfwDztjHYDDdKnCpjY6cwUQfM4hbtYmSJLjGd6KcK6aEb6rbQD';
+      
+      jest.resetModules();
+      const newerConfigModule = require('../../src/config');
+      
+      expect(newerConfigModule.canPerformAuthenticatedOperations()).toBe(true);
+    });
+    
+    it('should check if token transfers are available', () => {
+      // First with no credentials
+      process.env.HIVE_USERNAME = undefined;
+      process.env.HIVE_ACTIVE_KEY = undefined;
+      
+      jest.resetModules();
+      const newConfigModule = require('../../src/config');
+      
+      expect(newConfigModule.canPerformTokenTransfers()).toBe(false);
+      
+      // Now with valid credentials
+      process.env.HIVE_USERNAME = 'test-user';
+      process.env.HIVE_ACTIVE_KEY = '5JfwDztjHYDDdKnCpjY6cwUQfM4hbtYmSJLjGd6KcK6aEb6rbQD';
+      
+      jest.resetModules();
+      const newerConfigModule = require('../../src/config');
+      
+      expect(newerConfigModule.canPerformTokenTransfers()).toBe(true);
+    });
+  });
+});
