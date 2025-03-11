@@ -7,13 +7,12 @@
   "main": "dist/index.js",
   "type": "commonjs",
   "scripts": {
-    "start": "npx ts-node src/index.ts",
-    "inspector": "npx @modelcontextprotocol/inspector ts-node src/index.ts",
+    "start": "node dist/index.js",
+    "inspector": "npx @modelcontextprotocol/inspector dist/index.js",
     "build": "rimraf dist && tsc && shx chmod +x dist/index.js",
     "prepare": "npm run build",
     "watch": "tsc --watch"
   },
-  "keywords": [],
   "author": "gregory.luneau@gmail.com",
   "license": "ISC",
   "description": "An MCP server that enables AI assistants to interact with the Hive blockchain",
@@ -33,6 +32,32 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.8.2"
   },
+  "keywords": [
+    "hive",
+    "blockchain",
+    "cryptocurrency",
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "assistant",
+    "claude",
+    "dhive",
+    "social-blockchain",
+    "hive-blockchain",
+    "crypto",
+    "web3",
+    "content-creation",
+    "decentralized",
+    "social-media",
+    "dapp",
+    "blockchain-api",
+    "steem",
+    "llm",
+    "ai-tools",
+    "claude-ai",
+    "anthropic",
+    "hiveio"
+  ],
   "files": [
     "dist"
   ],
