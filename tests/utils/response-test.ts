@@ -1,10 +1,5 @@
-/**
- * Tests for response utilities
- * 
- * These tests validate the behavior of response formatting utilities
- */
-
-// const responseUtils = require('../../src/utils/response');
+// tests/utils/response.test.ts
+import { successJson, successText, errorResponse } from '../../src/utils/response';
 
 describe('Response Utilities', () => {
   describe('successJson', () => {
@@ -20,7 +15,7 @@ describe('Response Utilities', () => {
       };
       
       // Act
-      const response = responseUtils.successJson(testData);
+      const response = successJson(testData);
       
       // Assert
       expect(response).toBeDefined();
@@ -53,7 +48,7 @@ describe('Response Utilities', () => {
       };
       
       // Act
-      const response = responseUtils.successJson(complexData);
+      const response = successJson(complexData);
       
       // Assert
       const parsedResponse = JSON.parse(response.content[0].text);
@@ -61,7 +56,8 @@ describe('Response Utilities', () => {
       expect(parsedResponse.items.length).toBe(2);
       expect(parsedResponse.metadata.nested.deeply.value).toBe(true);
     });
-  });
+});
+
   
   describe('successText', () => {
     it('should format text responses correctly', () => {
@@ -69,7 +65,7 @@ describe('Response Utilities', () => {
       const testMessage = 'This is a test message';
       
       // Act
-      const response = responseUtils.successText(testMessage);
+      const response = successText(testMessage);
       
       // Assert
       expect(response).toBeDefined();
@@ -87,7 +83,7 @@ describe('Response Utilities', () => {
       const errorMessage = 'An error occurred during the operation';
       
       // Act
-      const response = responseUtils.errorResponse(errorMessage);
+      const response = errorResponse(errorMessage);
       
       // Assert
       expect(response).toBeDefined();
@@ -102,7 +98,7 @@ describe('Response Utilities', () => {
       const detailedError = 'Error in account_info: Account not found (404)';
       
       // Act
-      const response = responseUtils.errorResponse(detailedError);
+      const response = errorResponse(detailedError);
       
       // Assert
       expect(response.content[0].text).toBe(detailedError);

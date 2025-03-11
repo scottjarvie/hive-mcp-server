@@ -1,23 +1,13 @@
-/**
- * Integration tests for the Hive MCP Server
- * 
- * These tests verify that the tool methods work together correctly
- * and that data returned by one tool can be used by another.
- */
-
-const accountTools = require('../src/tools/account');
-const blockchainTools = require('../src/tools/blockchain');
-const cryptoTools = require('../src/tools/crypto');
-const responseUtils = require('../src/utils/response');
+// tests/integration.test.ts
+import { getAccountInfo, getAccountHistory } from '../src/tools/account';
+import { getChainProperties } from '../src/tools/blockchain';
+import { signMessage, verifySignature } from '../src/tools/crypto';
+import { successJson, errorResponse } from '../src/utils/response';
+import { canRunAuthenticatedTests, getTestUsername } from './utils/test-helpers';
 
 // Helper function to check if we can run authenticated tests
 function integrationCanRunAuthTests() {
   return Boolean(process.env.HIVE_USERNAME);
-}
-
-// Get a test username - either from env vars or a known account
-function integrationGetTestUsername() {
-  return process.env.HIVE_USERNAME || 'helo';
 }
 
 describe('Integration Tests', () => {
@@ -28,15 +18,15 @@ describe('Integration Tests', () => {
   describe('Blockchain and Account Info', () => {
     it('should fetch blockchain properties and account information', async () => {
       // Get blockchain properties
-      const propsResult = await blockchainTools.getChainProperties({});
+      const propsResult = await getChainProperties({});
       expect(propsResult.isError).toBeUndefined();
       
       const chainData = JSON.parse(propsResult.content[0].text);
       expect(chainData.dynamic_properties).toBeDefined();
       
       // Get account information for test account
-      const testUsername = integrationGetTestUsername();
-      const accountResult = await accountTools.getAccountInfo({ username: testUsername });
+      const testUsername = getTestUsername();
+      const accountResult = await getAccountInfo({ username: testUsername });
       expect(accountResult.isError).toBeUndefined();
       
       const accountData = JSON.parse(accountResult.content[0].text);
@@ -76,7 +66,7 @@ describe('Integration Tests', () => {
       const testMessage = 'Integration test message ' + new Date().toISOString();
       
       // Sign the message
-      const signResult = await cryptoTools.signMessage({
+      const signResult = await signMessage({
         message: testMessage,
         key_type: 'posting'
       });
@@ -85,7 +75,7 @@ describe('Integration Tests', () => {
       const signData = JSON.parse(signResult.content[0].text);
       
       // Verify the signature
-      const verifyResult = await cryptoTools.verifySignature({
+      const verifyResult = await verifySignature({
         message_hash: signData.message_hash,
         signature: signData.signature,
         public_key: signData.public_key
@@ -101,23 +91,23 @@ describe('Integration Tests', () => {
   describe('Response formatting', () => {
     it('should format all tool responses correctly', async () => {
       // Run a few different tools and verify response format consistency
-      const testUsername = integrationGetTestUsername();
+      const testUsername = getTestUsername();
       
       // Get account info
-      const accountResult = await accountTools.getAccountInfo({ username: testUsername });
+      const accountResult = await getAccountInfo({ username: testUsername });
       expect(accountResult.content).toBeInstanceOf(Array);
       expect(accountResult.content[0].type).toBe('text');
       expect(accountResult.content[0].mimeType).toBe('application/json');
       
       // Get blockchain properties
-      const propsResult = await blockchainTools.getChainProperties({});
+      const propsResult = await getChainProperties({});
       expect(propsResult.content).toBeInstanceOf(Array);
       expect(propsResult.content[0].type).toBe('text');
       expect(propsResult.content[0].mimeType).toBe('application/json');
       
       // Test creating responses directly
       const testData = { test: true, value: 123 };
-      const customResponse = responseUtils.successJson(testData);
+      const customResponse = successJson(testData);
       expect(customResponse.content).toBeInstanceOf(Array);
       expect(customResponse.content[0].type).toBe('text');
       expect(customResponse.content[0].mimeType).toBe('application/json');
@@ -127,7 +117,7 @@ describe('Integration Tests', () => {
       
       // Test error response
       const errorMsg = 'Test error message';
-      const errResponse = responseUtils.errorResponse(errorMsg);
+      const errResponse = errorResponse(errorMsg);
       expect(errResponse.isError).toBe(true);
       expect(errResponse.content[0].text).toBe(errorMsg);
     });
