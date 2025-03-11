@@ -20,9 +20,9 @@ export const sendEncryptedMessageSchema = z.object({
   amount: z.number().min(0.001).default(0.001).describe('Amount of HIVE to send (minimum 0.001)'),
 });
 
-// Schema for get_encrypted_messages tool
+// Schema for get_encrypted_messages tool - updated with optional username
 export const getEncryptedMessagesSchema = z.object({
-  username: z.string().describe('Hive username to fetch encrypted messages for'),
+  username: z.string().optional().describe('Hive username to fetch encrypted messages for (defaults to configured account if not specified)'),
   limit: z.number().min(1).max(100).default(20).describe('Maximum number of messages to retrieve'),
   decrypt: z.boolean().default(false).describe('Whether to attempt decryption of messages'),
 });

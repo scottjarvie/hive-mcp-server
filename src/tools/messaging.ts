@@ -1,4 +1,4 @@
-// Messaging tools implementation
+// Updated messaging tools implementation with fix for encryption/decryption
 import { Memo, PrivateKey } from '@hiveio/dhive';
 import client from '../config/client';
 import config from '../config';
@@ -38,11 +38,11 @@ export async function encryptMessage(
     // Get recipient's public memo key
     const recipientPublicKey = await getMemoPublicKey(params.recipient);
     
-    // Encrypt message
+    // Encrypt message - FIX: prepend # to message since Memo.encode checks for this prefix
     const encryptedMessage = Memo.encode(
       PrivateKey.fromString(senderPrivateKey),
       recipientPublicKey,
-      params.message
+      '#' + params.message // Add the # prefix required by Memo.encode
     );
     
     return successJson({
@@ -81,10 +81,15 @@ export async function decryptMessage(
         params.encrypted_message
       );
       
+      // FIX: Remove the # prefix that Memo.decode adds to the decrypted message
+      const cleanMessage = decryptedMessage.startsWith('#')
+        ? decryptedMessage.substring(1)
+        : decryptedMessage;
+
       return successJson({
         success: true,
         sender: params.sender,
-        decrypted_message: decryptedMessage
+        decrypted_message: cleanMessage
       });
     } catch (decryptError) {
       return errorResponse(`Failed to decrypt message: ${decryptError instanceof Error ? decryptError.message : String(decryptError)}. This could be because the message was not encrypted for you, or the sender information is incorrect.`);
@@ -119,11 +124,11 @@ export async function sendEncryptedMessage(
     // Get recipient's public memo key
     const recipientPublicKey = await getMemoPublicKey(params.recipient);
     
-    // Encrypt message
+    // Encrypt message - FIX: prepend # to message since Memo.encode checks for this prefix
     const encryptedMessage = Memo.encode(
       PrivateKey.fromString(memoKey),
       recipientPublicKey,
-      params.message
+      '#' + params.message // Add the # prefix required by Memo.encode
     );
     
     // Format the amount with 3 decimal places and append HIVE
@@ -161,19 +166,26 @@ export async function sendEncryptedMessage(
 // Get encrypted messages from account history
 export async function getEncryptedMessages(
   params: { 
-    username: string;
+    username?: string;
     limit: number;
     decrypt: boolean;
   }
 ): Promise<Response> {
   try {
+    // Use the provided username or fall back to the configured username
+    const username = params.username || config.hive.username;
+
+    if (!username) {
+      return errorResponse('Error: No username provided and HIVE_USERNAME environment variable is not set.');
+    }
+
     // The getAccountHistory method needs a starting point (from) parameter
     // We'll use -1 to get the most recent transactions
     const from = -1;
     
     // Get account history
     const history = await client.database.getAccountHistory(
-      params.username,
+      username,
       from,
       params.limit * 3 // Request more than needed to filter for encrypted messages
     );
@@ -226,10 +238,15 @@ export async function getEncryptedMessages(
         try {
           // Decrypt the message using our private memo key
           // The memo format already contains the necessary information about the sender/recipient
-          message.decrypted_message = Memo.decode(
+          const decryptedWithHash = Memo.decode(
             memoPrivateKey,
             message.encrypted_message
           );
+
+          // FIX: Remove the # prefix that Memo.decode adds to the decrypted message
+          message.decrypted_message = decryptedWithHash.startsWith('#')
+            ? decryptedWithHash.substring(1)
+            : decryptedWithHash;
         } catch (decryptError) {
           logger.warn(`Failed to decrypt message ${i}: ${decryptError instanceof Error ? decryptError.message : String(decryptError)}`);
           message.decrypted_message = "[Decryption failed]";
