@@ -9,7 +9,8 @@ const requiredEnvVars = [
 const recommendedEnvVars = [
   'HIVE_POSTING_KEY',
   'HIVE_ACTIVE_KEY',
-  'HIVE_MEMO_KEY'
+  'HIVE_MEMO_KEY',
+  'HIVE_OWNER_KEY'
 ];
 
 // Validate required environment variables

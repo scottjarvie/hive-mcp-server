@@ -9,7 +9,7 @@ import { successJson, errorResponse } from '../utils/response';
 export async function signMessage(
   params: { 
     message: string; 
-    key_type: 'posting' | 'active' | 'memo';
+    key_type: 'posting' | 'active' | 'memo' | 'owner';
   }
 ): Promise<Response> {
   try {
@@ -25,6 +25,9 @@ export async function signMessage(
         break;
       case 'memo':
         keyEnvVar = config.hive.memoKey;
+        break;
+      case 'owner':
+        keyEnvVar = config.hive.ownerKey;
         break;
       default:
         return errorResponse(`Error: Invalid key_type: ${params.key_type}`);

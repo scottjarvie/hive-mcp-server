@@ -6,6 +6,7 @@ interface HiveConfig {
   postingKey: string | undefined;
   activeKey: string | undefined;
   memoKey: string | undefined;
+  ownerKey?: string | undefined;
 }
 
 interface LogConfig {
