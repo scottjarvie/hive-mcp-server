@@ -13,7 +13,7 @@ The tests are organized to mirror the project structure:
 - `tests/utils/` - Tests for utility functions
   - `response.test.ts` - Tests for response formatting utilities
 - `tests/config/` - Tests for configuration modules
-  - `index.test.ts` - Tests for general configuration handling
+  - `client.test.ts` - Tests for the Hive client configuration
 - `tests/integration.test.ts` - Integration tests across multiple modules
 
 ## Prerequisites
@@ -59,20 +59,11 @@ npm test
 
 ### Specific Test Categories
 
-To run specific test categories:
+To run specific test files:
 
 ```bash
-# Run only the account tests
-npm run test:account
-
-# Run only the blockchain tests
-npm run test:blockchain
-
-# Run only the crypto tests
-npm run test:crypto
-
-# Run integration tests
-npm run test:integration
+npx jest tests/config/client.test.ts
+npx jest tests/tools/blockchain.test.ts
 ```
 
 ### Watch Mode
@@ -80,7 +71,7 @@ npm run test:integration
 To run tests in watch mode (auto-rerun on file changes):
 
 ```bash
-npm run test:watch
+npx jest --watch
 ```
 
 ## Test Philosophy

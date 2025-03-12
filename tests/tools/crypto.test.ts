@@ -96,23 +96,17 @@ describe('Crypto Tools', () => {
     });
     
     it('should handle missing private keys gracefully', async () => {
-      // Temporarily remove HIVE_POSTING_KEY
-      const originalPostingKey = process.env.HIVE_POSTING_KEY;
-      process.env.HIVE_POSTING_KEY = undefined;
-      
-      // Try to sign a message without a posting key
+      // Try to sign a message with a key_type that corresponds to a missing environment variable
       const signResult = await signMessage({
         message: 'Test message',
-        key_type: 'posting'
+        key_type: 'owner',
       });
       
       // Should return error about missing environment variable
       expect(signResult).toBeDefined();
       expect(signResult.isError).toBe(true);
-      expect(signResult.content[0].text).toContain('HIVE_POSTING_KEY');
-      
-      // Restore the original value
-      process.env.HIVE_POSTING_KEY = originalPostingKey;
+      expect(signResult.content[0].text).toContain('HIVE_OWNER_KEY');
+      expect(signResult.content[0].text).toContain('not set');
     });
   });
 });

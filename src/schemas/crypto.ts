@@ -5,7 +5,7 @@ import { z } from 'zod';
 export const signMessageSchema = z.object({
   message: z.string().min(1).describe('Message to sign (must not be empty)'),
   key_type: z
-    .enum(['posting', 'active', 'memo'])
+    .enum(['posting', 'active', 'memo', 'owner'])
     .optional()
     .default('posting')
     .describe(
