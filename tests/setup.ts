@@ -1,31 +1,37 @@
 // Global setup for Jest tests
 import 'dotenv/config';
 
-// Check if required environment variables are set
-const requiredEnvVars = [
-  'HIVE_USERNAME'
-];
-
-const recommendedEnvVars = [
-  'HIVE_POSTING_KEY',
-  'HIVE_ACTIVE_KEY',
-  'HIVE_MEMO_KEY',
-  'HIVE_OWNER_KEY'
-];
-
-// Validate required environment variables
-const missingRequiredVars = requiredEnvVars.filter(varName => !process.env[varName]);
-if (missingRequiredVars.length > 0) {
-  console.warn(`Warning: Required environment variables are missing: ${missingRequiredVars.join(', ')}`);
-  console.warn('Some tests that require these variables will be skipped.');
+// Import environment requirements from Jest globals
+declare global {
+  namespace NodeJS {
+    interface Global {
+      ENV_REQUIREMENTS?: {
+        required: string[];
+        recommended: string[];
+      };
+    }
+  }
 }
 
-// Check recommended environment variables
-const missingRecommendedVars = recommendedEnvVars.filter(varName => !process.env[varName]);
-if (missingRecommendedVars.length > 0) {
-  console.warn(`Warning: Recommended environment variables are missing: ${missingRecommendedVars.join(', ')}`);
-  console.warn('Some authenticated tests may be skipped.');
-}
+// Use environment requirements from Jest config if available, otherwise use defaults
+const requirements = global.ENV_REQUIREMENTS || {
+  required: ['HIVE_USERNAME'],
+  recommended: [
+    'HIVE_POSTING_KEY',
+    'HIVE_ACTIVE_KEY',
+    'HIVE_MEMO_KEY',
+    'HIVE_OWNER_KEY'
+  ]
+};
 
-// Increase timeout for Jest tests that interact with Hive blockchain
-jest.setTimeout(15000);
+// Environment variables state (export for use in tests)
+export const ENV_STATUS = {
+  missing: {
+    required: requirements.required.filter(varName => !process.env[varName]),
+    recommended: requirements.recommended.filter(varName => !process.env[varName])
+  },
+  available: {
+    required: requirements.required.filter(varName => !!process.env[varName]),
+    recommended: requirements.recommended.filter(varName => !!process.env[varName])
+  }
+};

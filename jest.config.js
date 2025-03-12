@@ -21,14 +21,23 @@ module.exports = {
     // Map root imports to their actual paths
     '^@/(.*)$': '<rootDir>/src/$1'
   },
-  // This setting is critical for handling ES module imports
   transformIgnorePatterns: [
     'node_modules/(?!(@hiveio)/)'
   ],
-  // Add this if you still have issues with ES modules
   globals: {
-    'ts-jest': {
-      useESM: false,
-    },
+    ENV_REQUIREMENTS: {
+      required: ['HIVE_USERNAME'],
+      recommended: [
+        'HIVE_POSTING_KEY',
+        'HIVE_ACTIVE_KEY',
+        'HIVE_MEMO_KEY',
+        'HIVE_OWNER_KEY',
+        'TEST_PRIVATE_KEY'
+      ]
+    }
   },
+  reporters: [
+    'default',
+    ['<rootDir>/tests/env-reporter.js', {}]
+  ],
 };
