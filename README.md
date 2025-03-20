@@ -1,6 +1,7 @@
 # Hive MCP Server
 
 [![smithery badge](https://smithery.ai/badge/@gluneau/hive-mcp-server)](https://smithery.ai/server/@gluneau/hive-mcp-server)
+[![glama badge](https://glama.ai/mcp/servers/pobodojvqv/badge)](https://glama.ai/mcp/servers/pobodojvqv)
 
 An MCP server that enables AI assistants to interact with the Hive blockchain through the Model Context Protocol.
 
@@ -80,6 +81,7 @@ To use this server with Claude Desktop:
 2. Open or create the Claude configuration file:
    - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
    - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+   - Linux: `~/.config/Claude/claude_desktop_config.json`
 
 3. Add this server to your configuration:
 
@@ -102,7 +104,10 @@ To use this server with Claude Desktop:
 
 ### Windsurf and Cursor
 
-The same JSON configuration works for Windsurf (in `windsurf_config.json`) and Cursor (in `cursor_config.json`).
+The same JSON configuration works for Windsurf (in `windsurf_config.json`) and for Cursor (in `~/.cursor/mcp.json` for version >= 0.47).
+
+In previous versions, you'll have to use the 1 line command format in the MCP section of the Settings :
+`env HIVE_USERNAME=your-hive-username env HIVE_POSTING_KEY=your-hive-posting-private-key env HIVE_ACTIVE_KEY=your-hive-active-private-key env HIVE_MEMO_KEY=your-hive-memo-private-key npx -y @gluneau/hive-mcp-server`
 
 ## Examples
 
