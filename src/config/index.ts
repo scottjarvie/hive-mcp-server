@@ -1,5 +1,22 @@
 // Configuration manager for environment variables and settings
 import { PrivateKey } from '@hiveio/dhive';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
+// Read package.json for server info
+function getPackageInfo(): { name: string; version: string } {
+  try {
+    const packagePath = join(__dirname, '..', 'package.json');
+    const packageJson = JSON.parse(readFileSync(packagePath, 'utf8'));
+    return {
+      name: packageJson.name || 'HiveServer',
+      version: packageJson.version || '1.0.0'
+    };
+  } catch (error) {
+    // Fallback values if package.json cannot be read
+    return { name: 'HiveServer', version: '1.0.0' };
+  }
+}
 
 interface HiveConfig {
   username: string | undefined;
@@ -34,12 +51,15 @@ const readEnvConfig = (): HiveConfig => {
   };
 };
 
+// Get package info for server configuration
+const packageInfo = getPackageInfo();
+
 // Default configuration
 const defaultConfig: AppConfig = {
   hive: readEnvConfig(),
   server: {
-    name: 'HiveServer',
-    version: '1.0.2',
+    name: packageInfo.name,
+    version: packageInfo.version,
   },
   log: {
     logLevel: 'info',

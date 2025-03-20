@@ -2,7 +2,7 @@
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { registerTools } from './tools';
+import { registerTools, registerPrompts } from './tools';
 import { validatePrivateKey, getConfig } from './config';
 import logger from './utils/logger';
 
@@ -69,6 +69,7 @@ const startServer = async () => {
 
   // Register tools
   registerTools(server);
+  registerPrompts(server);
 
   // Connect to the transport
   const transport = new StdioServerTransport();

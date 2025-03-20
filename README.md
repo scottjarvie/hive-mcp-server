@@ -19,6 +19,11 @@ This server provides a bridge between AI assistants (like Claude) and the Hive b
 
 ## Features
 
+### Prompts
+
+- `create-post` - Creates a structured prompt to guide the AI through creating a new Hive post with the right format and tags
+- `analyze-account` - Generates a prompt to analyze a Hive account's statistics, posting history, and activity patterns
+
 ### Tools
 
 #### Reading Data
@@ -285,6 +290,8 @@ Retrieve encrypted messages from account history with optional decryption.
 - `src/index.ts` - Main server implementation
 - `src/tools/` - Implementation of all tools
 - `src/schemas/` - Zod schemas for tool parameters
+- `src/utils/` - Utility functions for interacting with the Hive blockchain
+- `src/config/` - Client Configuration and log level handling
 
 ### Dependencies
 
