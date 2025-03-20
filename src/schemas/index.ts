@@ -8,12 +8,17 @@ import * as transactionSchemas from './transaction';
 import * as cryptoSchemas from './crypto';
 import * as blockchainSchemas from './blockchain';
 import * as messagingSchemas from './messaging';
+import * as promptsSchemas from './prompts';
 export * from './common';
 
 // Helper function to extract the shape from a ZodObject
 function getZodShape<T extends z.ZodRawShape>(schema: z.ZodObject<T>) {
   return schema._def.shape();
 }
+
+// Prompt schemas
+export const createPostPromptSchema = getZodShape(promptsSchemas.createPostSchema);
+export const analyzeAccountSchema = getZodShape(promptsSchemas.analyzeAccountSchema);
 
 // Messaging schemas
 export const encryptMessageSchema = getZodShape(messagingSchemas.encryptMessageSchema);

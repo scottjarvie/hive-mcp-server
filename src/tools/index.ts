@@ -9,6 +9,25 @@ import * as cryptoTools from './crypto';
 import * as blockchainTools from './blockchain';
 import * as messagingTools from './messaging';
 import { adaptHandler } from '../utils/response';
+import * as promptsTools from './prompts';
+
+export function registerPrompts(server: McpServer): void {
+  // Create Post prompt
+  server.prompt(
+    "create-post",
+    "Create a new post on Hive blockchain",
+    schemas.createPostPromptSchema,
+    promptsTools.createPostPrompt
+  );
+
+  // Analyze Account prompt
+  server.prompt(
+    "analyze-account",
+    "Analyze a Hive account's activity and statistics",
+    schemas.analyzeAccountSchema,
+    promptsTools.analyzeAccountPrompt
+  );
+}
 
 // Register tools with the server
 export function registerTools(server: McpServer): void {
