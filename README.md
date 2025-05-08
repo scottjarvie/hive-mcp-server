@@ -1,7 +1,6 @@
-[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/gluneau-hive-mcp-server-badge.png)](https://mseep.ai/app/gluneau-hive-mcp-server)
-
 # Hive MCP Server
 
+[![Verified on MseeP](https://mseep.ai/badge.svg)](https://mseep.ai/app/b56d1a0d-8755-4019-9955-ee901ad896eb)
 [![smithery badge](https://smithery.ai/badge/@gluneau/hive-mcp-server)](https://smithery.ai/server/@gluneau/hive-mcp-server)
 [![glama badge](https://glama.ai/mcp/servers/pobodojvqv/badge)](https://glama.ai/mcp/servers/pobodojvqv)
 
